@@ -3,6 +3,10 @@
 Proposals, contracts, and e-signatures for US freelancers and consultants —
 all in one shareable link.
 
+> **Going live?** Follow [LAUNCH_GUIDE.md](./LAUNCH_GUIDE.md) — step-by-step
+> instructions for connecting Supabase, Stripe, Resend, Lemon Squeezy, and
+> deploying to Vercel.
+
 ## Stack
 
 - Next.js 14 (App Router, TypeScript)
@@ -11,6 +15,7 @@ all in one shareable link.
 - TipTap rich text editor
 - Resend for transactional email
 - Puppeteer for signed-PDF generation
+- Stripe for client deposit payments on signing
 - Lemon Squeezy for subscription billing
 - Vercel for deployment
 
@@ -68,6 +73,8 @@ app/
     proposals/             CRUD for proposals
     sign/                   Handles signature submit + status update
     pdf/                    Puppeteer: render proposal to PDF
+    checkout/               Stripe Checkout session for deposits
+    webhooks/stripe/        Marks deposits paid
     webhooks/lemonsqueezy/  Subscription plan sync
 components/
   ui/                     shadcn/ui primitives
@@ -76,6 +83,7 @@ lib/
   supabase/               Browser, server, and middleware Supabase clients
   resend.ts                Signed-proposal email helper
   pdf.ts                    Puppeteer PDF renderer
+  stripe.ts                 Stripe client for deposit checkout
   lemonsqueezy.ts           Pricing tiers + webhook plan mapping
   plan.ts                   Plan enforcement (proposal limits)
 types/

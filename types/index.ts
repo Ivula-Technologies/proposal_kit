@@ -21,6 +21,9 @@ export interface Proposal {
   status: ProposalStatus;
   viewed_at: string | null;
   signed_at: string | null;
+  deposit_amount: number | null; // cents
+  deposit_paid: boolean;
+  deposit_paid_at: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -28,6 +28,9 @@ create table proposals (
   status             text default 'draft',     -- draft|sent|viewed|signed
   viewed_at          timestamptz,
   signed_at          timestamptz,
+  deposit_amount     integer,     -- deposit in cents; null/0 = no deposit
+  deposit_paid       boolean default false,
+  deposit_paid_at    timestamptz,
   created_at         timestamptz default now(),
   updated_at         timestamptz default now()
 );

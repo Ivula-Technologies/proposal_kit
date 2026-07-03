@@ -19,6 +19,9 @@ export function EditorClient({ proposal }: { proposal: Proposal }) {
   const [title, setTitle] = useState(proposal.title);
   const [clientName, setClientName] = useState(proposal.client_name ?? "");
   const [clientEmail, setClientEmail] = useState(proposal.client_email ?? "");
+  const [depositDollars, setDepositDollars] = useState(
+    proposal.deposit_amount ? String(proposal.deposit_amount / 100) : ""
+  );
   const [status, setStatus] = useState(proposal.status);
   const [saving, setSaving] = useState(false);
 
@@ -33,6 +36,12 @@ export function EditorClient({ proposal }: { proposal: Proposal }) {
     dirtyRef.current = false;
     setSaving(true);
 
+    const parsedDeposit = Math.round(parseFloat(depositDollars) * 100);
+    const depositAmount =
+      Number.isFinite(parsedDeposit) && parsedDeposit > 0
+        ? parsedDeposit
+        : null;
+
     const supabase = createClient();
     const { error } = await supabase
       .from("proposals")
@@ -40,6 +49,7 @@ export function EditorClient({ proposal }: { proposal: Proposal }) {
         title,
         client_name: clientName || null,
         client_email: clientEmail || null,
+        deposit_amount: depositAmount,
         content: contentRef.current,
       })
       .eq("id", proposal.id);
@@ -51,7 +61,7 @@ export function EditorClient({ proposal }: { proposal: Proposal }) {
     } else {
       toast.success("Saved");
     }
-  }, [title, clientName, clientEmail, proposal.id]);
+  }, [title, clientName, clientEmail, depositDollars, proposal.id]);
 
   const scheduleSave = useCallback(() => {
     dirtyRef.current = true;
@@ -124,6 +134,20 @@ export function EditorClient({ proposal }: { proposal: Proposal }) {
             type="email"
             className="h-9 w-44"
           />
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-muted">
+              $
+            </span>
+            <Input
+              value={depositDollars}
+              onChange={handleFieldChange(setDepositDollars)}
+              placeholder="Deposit"
+              type="number"
+              min="0"
+              step="0.01"
+              className="h-9 w-28 pl-7"
+            />
+          </div>
           <StatusBadge status={status} />
           <Button variant="outline" size="sm" onClick={handleCopyLink}>
             <Copy className="h-3.5 w-3.5" />

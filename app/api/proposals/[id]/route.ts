@@ -16,7 +16,14 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => ({}));
-  const allowedFields = ["title", "client_name", "client_email", "content", "status"];
+  const allowedFields = [
+    "title",
+    "client_name",
+    "client_email",
+    "content",
+    "status",
+    "deposit_amount",
+  ];
   const updates = Object.fromEntries(
     Object.entries(body).filter(([key]) => allowedFields.includes(key))
   );

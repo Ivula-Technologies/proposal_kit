@@ -13,8 +13,27 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Proposal } from "@/types";
 
-export function PublicProposalClient({ proposal }: { proposal: Proposal }) {
+function formatUsd(cents: number) {
+  return (cents / 100).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+  });
+}
+
+export function PublicProposalClient({
+  proposal,
+  depositJustPaid = false,
+}: {
+  proposal: Proposal;
+  depositJustPaid?: boolean;
+}) {
   const [signed, setSigned] = useState(proposal.status === "signed");
+  const [payingDeposit, setPayingDeposit] = useState(false);
+  const depositDue =
+    !!proposal.deposit_amount &&
+    proposal.deposit_amount > 0 &&
+    !proposal.deposit_paid &&
+    !depositJustPaid;
   const [signerName, setSignerName] = useState("");
   const [signerEmail, setSignerEmail] = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(
@@ -61,6 +80,27 @@ export function PublicProposalClient({ proposal }: { proposal: Proposal }) {
     }
   }
 
+  async function handlePayDeposit() {
+    setPayingDeposit(true);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proposalId: proposal.id }),
+      });
+      const body = await res.json();
+      if (!res.ok || !body.url) {
+        throw new Error(body.error ?? "Couldn't start checkout");
+      }
+      window.location.href = body.url;
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't start checkout"
+      );
+      setPayingDeposit(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-neutral-bg px-4 py-8 sm:py-12">
       <div className="mx-auto max-w-[720px]">
@@ -95,6 +135,35 @@ export function PublicProposalClient({ proposal }: { proposal: Proposal }) {
                 <p className="max-w-sm text-sm text-neutral-muted">
                   A signed copy has been emailed to you and to the sender.
                 </p>
+                {depositJustPaid && (
+                  <p className="mt-2 rounded-md bg-brand-light px-4 py-2 text-sm font-medium text-brand-navy">
+                    Deposit received — thank you!
+                  </p>
+                )}
+                {depositDue && (
+                  <div className="mt-4 flex w-full max-w-sm flex-col gap-2 rounded-lg border border-neutral-border bg-neutral-bg p-4">
+                    <p className="text-sm text-neutral-muted">
+                      A deposit of{" "}
+                      <strong className="text-brand-navy">
+                        {formatUsd(proposal.deposit_amount!)}
+                      </strong>{" "}
+                      is due to kick off this project.
+                    </p>
+                    <Button
+                      onClick={handlePayDeposit}
+                      disabled={payingDeposit}
+                      variant="accent"
+                    >
+                      {payingDeposit && (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      )}
+                      Pay {formatUsd(proposal.deposit_amount!)} deposit
+                    </Button>
+                    <p className="text-center text-xs text-neutral-muted">
+                      Secure payment via Stripe
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               <Card className="border-0 shadow-none">

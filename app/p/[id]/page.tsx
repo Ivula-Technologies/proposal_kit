@@ -5,8 +5,10 @@ import { PublicProposalClient } from "./PublicProposalClient";
 
 export default async function PublicProposalPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams: { deposit?: string };
 }) {
   const supabase = createServiceClient();
 
@@ -29,5 +31,10 @@ export default async function PublicProposalPage({
     proposal.status = nextStatus;
   }
 
-  return <PublicProposalClient proposal={proposal} />;
+  return (
+    <PublicProposalClient
+      proposal={proposal}
+      depositJustPaid={searchParams.deposit === "success"}
+    />
+  );
 }
