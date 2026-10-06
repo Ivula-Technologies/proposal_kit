@@ -1,4 +1,4 @@
-export type Plan = "free" | "solo" | "pro" | "agency";
+export type Plan = "solo" | "pro";
 
 export type ProposalStatus = "draft" | "sent" | "viewed" | "signed";
 
@@ -7,7 +7,15 @@ export interface Profile {
   full_name: string | null;
   business_name: string | null;
   email: string | null;
-  plan: Plan;
+  plan: Plan | null;
+  trial_ends_at: string | null;
+  stripe_customer_id: string | null;
+  subscription_id: string | null;
+  subscription_status: string | null;
+  current_period_end: string | null;
+  stripe_account_id: string | null;
+  charges_enabled: boolean;
+  payouts_enabled: boolean;
   created_at: string;
 }
 
@@ -24,6 +32,7 @@ export interface Proposal {
   deposit_amount: number | null; // cents
   deposit_paid: boolean;
   deposit_paid_at: string | null;
+  deposit_payment_intent: string | null;
   created_at: string;
   updated_at: string;
 }

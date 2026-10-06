@@ -3,9 +3,14 @@
 Proposals, contracts, and e-signatures for US freelancers and consultants —
 all in one shareable link.
 
-> **Going live?** Follow [LAUNCH_GUIDE.md](./LAUNCH_GUIDE.md) — step-by-step
-> instructions for connecting Supabase, Stripe, Resend, Lemon Squeezy, and
-> deploying to Vercel.
+> **Going live?** Follow [DEPLOY.md](./DEPLOY.md): Supabase, Resend, Stripe
+> (subscription + Connect payouts) and cPanel, step by step.
+
+## Pricing
+
+14-day free trial, no card. **Solo $29/mo** (10 new proposals a month) and
+**Pro $59/mo** (unlimited, no ProposalKit footer). Client deposits go to the
+freelancer's own Stripe Express account; ProposalKit takes no cut by default.
 
 ## Stack
 
@@ -15,9 +20,9 @@ all in one shareable link.
 - TipTap rich text editor
 - Resend for transactional email
 - Puppeteer for signed-PDF generation
-- Stripe for client deposit payments on signing
-- Lemon Squeezy for subscription billing
-- Vercel for deployment
+- Stripe Billing for the ProposalKit subscription
+- Stripe Connect (Express) so client deposits are paid to the freelancer
+- cPanel (Setup Node.js App) for hosting
 
 ## First-time setup
 
@@ -37,8 +42,8 @@ all in one shareable link.
    cp .env.local.example .env.local
    ```
 
-   See the comments in `.env.local.example` for where to find each key
-   (Supabase dashboard, resend.com, app.lemonsqueezy.com).
+   See the comments in `.env.local.example` and DEPLOY.md for where each
+   key comes from.
 
 4. **Run the dev server**
 
@@ -52,9 +57,9 @@ all in one shareable link.
 ### PDF generation locally
 
 `/api/pdf` and `/api/sign` use Puppeteer to render the signed proposal PDF.
-In production (Vercel) this works out of the box via `@sparticuz/chromium`.
-For local development, point `PUPPETEER_EXECUTABLE_PATH` in `.env.local` at
-a Chrome/Chromium binary on your machine.
+On Linux servers it uses the bundled `@sparticuz/chromium` (Node 22.17+).
+On macOS/Windows, point `PUPPETEER_EXECUTABLE_PATH` in `.env.local` at a
+Chrome/Chromium binary on your machine.
 
 ## Project structure
 
@@ -68,14 +73,16 @@ app/
     dashboard/            Proposal list + status dashboard
     editor/[id]/           TipTap proposal editor
   p/[id]/                 Public proposal view (no login required)
-  upgrade/                Plan upgrade / pricing page
+    settings/              Business name, payouts (Connect), plan and billing
+  upgrade/                Redirects to Settings > billing
   api/
     proposals/             CRUD for proposals
     sign/                   Handles signature submit + status update
     pdf/                    Puppeteer: render proposal to PDF
-    checkout/               Stripe Checkout session for deposits
-    webhooks/stripe/        Marks deposits paid
-    webhooks/lemonsqueezy/  Subscription plan sync
+    checkout/               Deposit checkout, paid to the freelancer's Connect account
+    connect/                Stripe Express onboarding + payouts dashboard link
+    billing/                Subscription checkout + customer portal
+    webhooks/stripe/        Deposits paid, subscription sync, Connect account status
 components/
   ui/                     shadcn/ui primitives
   shared/                 ProposalCard, Editor, SignaturePad, StatusBadge, Navbar, Sidebar
@@ -83,20 +90,18 @@ lib/
   supabase/               Browser, server, and middleware Supabase clients
   resend.ts                Signed-proposal email helper
   pdf.ts                    Puppeteer PDF renderer
-  stripe.ts                 Stripe client for deposit checkout
-  lemonsqueezy.ts           Pricing tiers + webhook plan mapping
-  plan.ts                   Plan enforcement (proposal limits)
+  stripe.ts                 Stripe client + optional platform fee
+  billing.ts                Plans, free trial and entitlement checks
+  connect.ts                Syncs Connect account status
+  rate-limit.ts, validate.ts  Public-route guards
 types/
   index.ts                Shared TypeScript types + Supabase Database type
 supabase/
-  schema.sql               Tables, RLS policies, storage bucket
+  schema.sql               Tables, RLS policies, storage bucket (safe to re-run)
   seed.sql                  Default proposal templates
 ```
 
-## Deploying to Vercel
+## Deploying
 
-1. Push this repository to GitHub.
-2. In Vercel, "Add new project" and import the repo.
-3. Add every key from `.env.local` as an environment variable.
-4. Set `NEXT_PUBLIC_APP_URL` to your Vercel domain.
-5. Deploy — every push to `main` auto-deploys.
+See [DEPLOY.md](./DEPLOY.md). Every push to `main` runs the **Build cPanel
+Package** GitHub Action, which uploads a ready-to-extract package.

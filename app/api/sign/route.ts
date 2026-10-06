@@ -4,9 +4,16 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { renderProposalToPdf } from "@/lib/pdf";
 import { sendSignedProposalEmail } from "@/lib/resend";
+import { appUrl, loadEntitlement } from "@/lib/billing";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { isEmail, isUuid } from "@/lib/validate";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
+
+// A drawn signature PNG is typically 5–40 KB; anything far bigger is abuse.
+const MAX_SIGNATURE_BYTES = 300 * 1024;
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
 
 interface SignRequestBody {
   proposalId: string;
@@ -16,31 +23,66 @@ interface SignRequestBody {
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as Partial<SignRequestBody>;
-  const { proposalId, signerName, signerEmail, signatureDataUrl } = body;
-
-  if (!proposalId || !signerName || !signatureDataUrl) {
+  const ipAddress = clientIp(request);
+  if (!rateLimit(`sign:${ipAddress}`, 10, 10 * 60_000)) {
     return NextResponse.json(
-      { error: "proposalId, signerName, and signatureDataUrl are required" },
+      { error: "Too many attempts. Try again in a few minutes." },
+      { status: 429 }
+    );
+  }
+
+  const body = (await request.json().catch(() => ({}))) as Partial<SignRequestBody>;
+  const { proposalId, signatureDataUrl } = body;
+  const signerName =
+    typeof body.signerName === "string" ? body.signerName.trim().slice(0, 120) : "";
+  const signerEmail =
+    typeof body.signerEmail === "string" && body.signerEmail.trim()
+      ? body.signerEmail.trim()
+      : null;
+
+  if (!isUuid(proposalId) || !signerName || typeof signatureDataUrl !== "string") {
+    return NextResponse.json(
+      { error: "Your name and signature are required" },
       { status: 400 }
     );
+  }
+  if (signerEmail && !isEmail(signerEmail)) {
+    return NextResponse.json({ error: "Enter a valid email" }, { status: 400 });
+  }
+
+  const base64 = signatureDataUrl.replace(/^data:image\/png;base64,/, "");
+  const imageBuffer = Buffer.from(base64, "base64");
+  if (
+    imageBuffer.length === 0 ||
+    imageBuffer.length > MAX_SIGNATURE_BYTES ||
+    !imageBuffer.subarray(0, 4).equals(PNG_MAGIC)
+  ) {
+    return NextResponse.json({ error: "Invalid signature image" }, { status: 400 });
   }
 
   const supabase = createServiceClient();
 
-  const { data: proposal, error: proposalError } = await supabase
+  // Claim the proposal atomically so it can only be signed once, even if
+  // the client double-clicks or two people open the link.
+  const signedAt = new Date().toISOString();
+  const { data: proposal } = await supabase
     .from("proposals")
-    .select("*")
+    .update({ status: "signed", signed_at: signedAt })
     .eq("id", proposalId)
-    .single();
+    .neq("status", "signed")
+    .select("*")
+    .maybeSingle();
 
-  if (proposalError || !proposal) {
-    return NextResponse.json({ error: "Proposal not found" }, { status: 404 });
+  if (!proposal) {
+    const { data: existing } = await supabase
+      .from("proposals")
+      .select("id")
+      .eq("id", proposalId)
+      .maybeSingle();
+    return existing
+      ? NextResponse.json({ error: "This proposal is already signed" }, { status: 409 })
+      : NextResponse.json({ error: "Proposal not found" }, { status: 404 });
   }
-
-  // Decode the base64 PNG (data URL prefix stripped) into a Buffer.
-  const base64 = signatureDataUrl.replace(/^data:image\/png;base64,/, "");
-  const imageBuffer = Buffer.from(base64, "base64");
 
   const signatureId = randomUUID();
   const storagePath = `${proposalId}/${signatureId}.png`;
@@ -49,92 +91,90 @@ export async function POST(request: Request) {
     .from("signatures")
     .upload(storagePath, imageBuffer, { contentType: "image/png" });
 
-  if (uploadError) {
-    return NextResponse.json(
-      { error: "Failed to store signature" },
-      { status: 500 }
-    );
-  }
-
-  const ipAddress =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-  const userAgent = request.headers.get("user-agent");
-
-  const { data: signature, error: signatureError } = await supabase
-    .from("signatures")
-    .insert({
-      id: signatureId,
-      proposal_id: proposalId,
-      signer_name: signerName,
-      signer_email: signerEmail || null,
-      signature_url: storagePath,
-      ip_address: ipAddress,
-      user_agent: userAgent,
-    })
-    .select("*")
-    .single();
+  const { data: signature, error: signatureError } = uploadError
+    ? { data: null, error: uploadError }
+    : await supabase
+        .from("signatures")
+        .insert({
+          id: signatureId,
+          proposal_id: proposalId,
+          signer_name: signerName,
+          signer_email: signerEmail,
+          signature_url: storagePath,
+          ip_address: ipAddress === "unknown" ? null : ipAddress,
+          user_agent: request.headers.get("user-agent")?.slice(0, 500) ?? null,
+        })
+        .select("*")
+        .single();
 
   if (signatureError || !signature) {
+    // Release the claim so the client can retry.
+    await supabase
+      .from("proposals")
+      .update({ status: proposal.viewed_at ? "viewed" : "sent", signed_at: null })
+      .eq("id", proposalId);
+    if (!uploadError) {
+      await supabase.storage.from("signatures").remove([storagePath]);
+    }
     return NextResponse.json(
-      { error: "Failed to record signature" },
+      { error: "Couldn't record your signature. Please try again." },
       { status: 500 }
     );
   }
 
-  const signedAt = new Date().toISOString();
-  const { data: updatedProposal } = await supabase
-    .from("proposals")
-    .update({ status: "signed", signed_at: signedAt })
-    .eq("id", proposalId)
-    .select("*")
-    .single();
-
-  const finalProposal = updatedProposal ?? { ...proposal, status: "signed" as const, signed_at: signedAt };
-
-  // Generate the PDF and email both parties. Failures here should not block
-  // the signature from being recorded — the client sees a successful sign,
-  // and the PDF remains available on demand via /api/pdf.
+  // Generate the PDF and email both parties. Failures here must not undo
+  // the signature: if the PDF can't render, the emails link to the signed
+  // proposal instead.
   try {
-    const { data: signedUrlData } = await supabase.storage
-      .from("signatures")
-      .createSignedUrl(storagePath, 3600);
+    const { profile, entitlement } = await loadEntitlement(supabase, proposal.user_id);
+    const branding = {
+      businessName: profile?.business_name ?? null,
+      showBranding: entitlement.showBranding,
+    };
 
-    const pdfBuffer = await renderProposalToPdf({
-      proposal: finalProposal,
-      signature,
-      signatureImageUrl: signedUrlData?.signedUrl ?? null,
-    });
+    let pdfBuffer: Buffer | null = null;
+    try {
+      pdfBuffer = await renderProposalToPdf({
+        proposal,
+        signature,
+        signatureImageUrl: `data:image/png;base64,${imageBuffer.toString("base64")}`,
+        branding,
+      });
+    } catch (err) {
+      console.error("Failed to render signed PDF", err);
+    }
 
-    const { data: consultantProfile } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("id", proposal.user_id)
-      .single();
-
-    const recipients: Promise<unknown>[] = [];
+    const proposalUrl = `${appUrl(request)}/p/${proposal.id}`;
+    const sends: Promise<unknown>[] = [];
     if (signerEmail) {
-      recipients.push(
+      sends.push(
         sendSignedProposalEmail({
           to: signerEmail,
           proposalTitle: proposal.title,
           recipientLabel: "client",
           pdfBuffer,
+          proposalUrl,
+          businessName: branding.businessName,
+          replyTo: profile?.email,
         })
       );
     }
-    if (consultantProfile?.email) {
-      recipients.push(
+    if (profile?.email) {
+      sends.push(
         sendSignedProposalEmail({
-          to: consultantProfile.email,
+          to: profile.email,
           proposalTitle: proposal.title,
           recipientLabel: "consultant",
           pdfBuffer,
+          proposalUrl,
+          businessName: branding.businessName,
+          replyTo: signerEmail,
         })
       );
     }
-    await Promise.all(recipients);
+    await Promise.all(sends);
   } catch (err) {
-    console.error("Failed to generate/send signed PDF", err);
+    console.error("Failed to send signed-proposal emails", err);
   }
 
   return NextResponse.json({ ok: true });

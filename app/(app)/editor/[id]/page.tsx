@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { loadEntitlement } from "@/lib/billing";
 import { EditorClient } from "./EditorClient";
 
 export default async function EditorPage({
@@ -13,9 +14,20 @@ export default async function EditorPage({
     .from("proposals")
     .select("*")
     .eq("id", params.id)
-    .single();
+    .maybeSingle();
 
   if (!proposal) notFound();
 
-  return <EditorClient proposal={proposal} />;
+  const { profile, entitlement } = await loadEntitlement(
+    supabase,
+    proposal.user_id
+  );
+
+  return (
+    <EditorClient
+      proposal={proposal}
+      canEdit={entitlement.canEdit}
+      payoutsReady={!!profile?.charges_enabled}
+    />
+  );
 }

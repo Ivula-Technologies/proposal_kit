@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { createClient } from "@/lib/supabase/server";
-import { canCreateProposal } from "@/lib/plan";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { loadEntitlement, UPGRADE_REQUIRED } from "@/lib/billing";
 
 export async function GET() {
   const supabase = createClient();
@@ -36,35 +36,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan")
-    .eq("id", user.id)
-    .single();
-
-  const allowed = await canCreateProposal(
-    supabase,
-    user.id,
-    profile?.plan ?? "free"
-  );
-  if (!allowed) {
+  const service = createServiceClient();
+  const { entitlement } = await loadEntitlement(service, user.id);
+  if (!entitlement.canCreate) {
     return NextResponse.json(
-      { error: "Proposal limit reached for your plan" },
+      {
+        error:
+          entitlement.state === "active"
+            ? "You've used this month's proposals on your plan"
+            : "Your free trial has ended",
+        code: UPGRADE_REQUIRED,
+      },
       { status: 403 }
     );
   }
 
   const body = await request.json().catch(() => ({}));
+  const title =
+    typeof body.title === "string" && body.title.trim()
+      ? body.title.trim().slice(0, 200)
+      : "Untitled proposal";
+  const content =
+    body.content && typeof body.content === "object" ? body.content : null;
 
-  const { data, error } = await supabase
+  const { data, error } = await service
     .from("proposals")
-    .insert({
-      user_id: user.id,
-      title: body.title ?? "Untitled proposal",
-      client_name: body.client_name ?? null,
-      client_email: body.client_email ?? null,
-      content: body.content ?? null,
-    })
+    .insert({ user_id: user.id, title, content })
     .select("*")
     .single();
 
