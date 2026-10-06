@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
@@ -62,28 +63,64 @@ export async function POST(request: Request) {
   }
 
   // Picking a plan mid-trial doesn't cut the trial short: the first charge
-  // happens when the free trial would have ended. Stripe needs the trial
-  // end to be at least 48 hours away.
+  // happens when the free trial would have ended. Stripe needs a trial end
+  // at least 48 hours away, so in the trial's last two days we round up to
+  // that minimum rather than charging straight away.
+  const now = Math.floor(Date.now() / 1000);
+  // 10-minute window: repeated clicks inside it reuse the same session.
+  const bucket = Math.floor(now / 600);
   const trialEnd = profile?.trial_ends_at
     ? Math.floor(new Date(profile.trial_ends_at).getTime() / 1000)
     : 0;
-  const minTrialEnd = Math.floor(Date.now() / 1000) + 48 * 3600;
+  const minTrialEnd = (bucket + 1) * 600 + 48 * 3600;
+  const subscriptionTrialEnd =
+    trialEnd > now ? Math.max(trialEnd, minTrialEnd) : null;
+
+  // Only one checkout can be payable at a time, so a second tab or a
+  // double-click can't start a second subscription.
+  const open = await stripe.checkout.sessions.list({
+    customer: customerId,
+    status: "open",
+    limit: 10,
+  });
 
   const base = appUrl(request);
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    client_reference_id: user.id,
-    line_items: [{ price: priceId, quantity: 1 }],
-    allow_promotion_codes: true,
-    subscription_data: {
-      metadata: { user_id: user.id },
-      ...(trialEnd > minTrialEnd ? { trial_end: trialEnd } : {}),
-    },
-    metadata: { user_id: user.id, kind: "subscription" },
-    success_url: `${base}/settings?billing=success`,
-    cancel_url: `${base}/settings?billing=cancelled`,
-  });
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create(
+      {
+        mode: "subscription",
+        customer: customerId,
+        client_reference_id: user.id,
+        line_items: [{ price: priceId, quantity: 1 }],
+        allow_promotion_codes: true,
+        subscription_data: {
+          metadata: { user_id: user.id },
+          ...(subscriptionTrialEnd ? { trial_end: subscriptionTrialEnd } : {}),
+        },
+        metadata: { user_id: user.id, kind: "subscription" },
+        success_url: `${base}/settings?billing=success`,
+        cancel_url: `${base}/settings?billing=cancelled`,
+      },
+      // Repeated clicks for the same plan in the same window return the
+      // same session; switching plans expires the earlier one below.
+      { idempotencyKey: `subscription-checkout-${user.id}-${plan}-${bucket}` }
+    );
+  } catch (err) {
+    if (err instanceof Stripe.errors.StripeIdempotencyError) {
+      return NextResponse.json(
+        { error: "A checkout is already in progress. Try again in a few minutes." },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
+
+  await Promise.all(
+    open.data
+      .filter((s) => s.id !== session.id)
+      .map((s) => stripe.checkout.sessions.expire(s.id).catch(() => null))
+  );
 
   return NextResponse.json({ url: session.url });
 }
