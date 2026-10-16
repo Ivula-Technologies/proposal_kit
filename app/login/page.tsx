@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Mail, Loader2 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { safeNextPath } from "@/lib/validate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,7 +54,7 @@ function LoginForm() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") ?? "/dashboard";
+  const next = safeNextPath(searchParams.get("next"));
 
   async function handleMagicLink(e: React.FormEvent) {
     e.preventDefault();

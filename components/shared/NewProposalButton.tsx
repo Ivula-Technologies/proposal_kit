@@ -55,7 +55,9 @@ export function NewProposalButton({
     setOpen(false);
 
     if (res.status === 403) {
-      router.push("/upgrade");
+      const body = await res.json().catch(() => ({}));
+      toast.error(body.error ?? "Choose a plan to keep creating proposals");
+      router.push("/settings#billing");
       return;
     }
 

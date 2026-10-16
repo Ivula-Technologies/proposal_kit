@@ -20,16 +20,34 @@ function formatUsd(cents: number) {
   });
 }
 
+export type PublicProposal = Pick<
+  Proposal,
+  | "id"
+  | "title"
+  | "client_name"
+  | "content"
+  | "status"
+  | "deposit_amount"
+  | "deposit_paid"
+>;
+
 export function PublicProposalClient({
   proposal,
+  businessName,
+  showBranding,
+  depositsEnabled,
   depositJustPaid = false,
 }: {
-  proposal: Proposal;
+  proposal: PublicProposal;
+  businessName: string | null;
+  showBranding: boolean;
+  depositsEnabled: boolean;
   depositJustPaid?: boolean;
 }) {
   const [signed, setSigned] = useState(proposal.status === "signed");
   const [payingDeposit, setPayingDeposit] = useState(false);
   const depositDue =
+    depositsEnabled &&
     !!proposal.deposit_amount &&
     proposal.deposit_amount > 0 &&
     !proposal.deposit_paid &&
@@ -105,7 +123,11 @@ export function PublicProposalClient({
     <div className="min-h-screen bg-neutral-bg px-4 py-8 sm:py-12">
       <div className="mx-auto max-w-[720px]">
         <div className="mb-6 text-center text-sm font-semibold text-brand-navy">
-          Proposal<span className="text-brand-cyan">Kit</span>
+          {businessName ?? (
+            <>
+              Proposal<span className="text-brand-cyan">Kit</span>
+            </>
+          )}
         </div>
 
         <div className="rounded-lg border border-neutral-border bg-white shadow-sm">
@@ -133,7 +155,8 @@ export function PublicProposalClient({
                   This proposal has been signed
                 </h2>
                 <p className="max-w-sm text-sm text-neutral-muted">
-                  A signed copy has been emailed to you and to the sender.
+                  A signed copy has been emailed to the sender, and to you if
+                  you entered your email.
                 </p>
                 {depositJustPaid && (
                   <p className="mt-2 rounded-md bg-brand-light px-4 py-2 text-sm font-medium text-brand-navy">
@@ -183,7 +206,9 @@ export function PublicProposalClient({
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="signerEmail">Email</Label>
+                        <Label htmlFor="signerEmail">
+                          Email (for your signed copy)
+                        </Label>
                         <Input
                           id="signerEmail"
                           type="email"
@@ -197,6 +222,12 @@ export function PublicProposalClient({
                       <Label>Signature</Label>
                       <SignaturePad onChange={setSignatureDataUrl} />
                     </div>
+
+                    <p className="text-xs text-neutral-muted">
+                      By signing, you agree to this proposal and to sign
+                      electronically. Your name, signature, IP address and
+                      the time are recorded.
+                    </p>
 
                     <Button
                       type="submit"
@@ -214,6 +245,15 @@ export function PublicProposalClient({
             )}
           </div>
         </div>
+
+        {showBranding && (
+          <p className="mt-6 text-center text-xs text-neutral-muted">
+            Sent with{" "}
+            <a href="/" className="font-semibold text-brand-navy">
+              Proposal<span className="text-brand-cyan">Kit</span>
+            </a>
+          </p>
+        )}
       </div>
     </div>
   );

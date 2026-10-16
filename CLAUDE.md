@@ -10,9 +10,9 @@ and receive a deposit — all in one shareable link.
 - Styling: Tailwind CSS + shadcn/ui components
 - Database: Supabase (PostgreSQL + Auth + Storage)
 - Email: Resend
-- Payments: Lemon Squeezy (subscriptions + one-time deposits)
-- PDF generation: Puppeteer via a Next.js API route
-- Deployment: Vercel (free tier)
+- Payments: Stripe Billing (ProposalKit subscription) + Stripe Connect Express (client deposits paid to the freelancer)
+- PDF generation: Puppeteer (@sparticuz/chromium) via a Next.js API route
+- Deployment: cPanel Setup Node.js App, Next.js standalone build (see DEPLOY.md)
 - Editor: TipTap (rich text block editor, open source)
 
 ## Brand tokens
@@ -25,8 +25,7 @@ and receive a deposit — all in one shareable link.
 - Mobile-first, fully responsive
 - Public proposal view (/p/[id]) requires NO login for the client
 - All data is scoped by user_id (RLS enforced on every table)
-- No feature should require a US company — billing via Lemon Squeezy
-- Keep the MVP to 3 screens: dashboard, editor, public view
+- Keep the app to 4 screens: dashboard, editor, public view, settings (business, payouts, billing)
 
 ## MVP features (build these first, nothing else)
 1. Auth — Supabase magic link + Google OAuth
@@ -39,7 +38,6 @@ and receive a deposit — all in one shareable link.
 ## Phase 2 (do not build until MVP is live and tested)
 - Pricing table builder inside the editor
 - Contract template builder (NDA, service agreement)
-- Deposit collection on signature via Stripe Connect
 
 ## Phase 3
 - AI proposal writer (Claude API) — paste a client brief, generate a full draft

@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Plus } from "lucide-react";
+import { LayoutDashboard, Plus, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { NewProposalButton } from "@/components/shared/NewProposalButton";
 
-const NAV_ITEMS = [{ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard }];
+const NAV_ITEMS = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/settings", label: "Settings", icon: Settings },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
