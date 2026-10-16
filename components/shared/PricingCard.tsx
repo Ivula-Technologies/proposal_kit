@@ -4,9 +4,21 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import type { PricingTier } from "@/lib/lemonsqueezy";
+import type { PlanInfo } from "@/lib/billing";
 
-export function PricingCard({ tier }: { tier: PricingTier }) {
+export type PricingTier = Pick<
+  PlanInfo,
+  "key" | "name" | "priceLabel" | "features" | "featured"
+>;
+
+export function PricingCard({
+  tier,
+  action,
+}: {
+  tier: PricingTier;
+  // Defaults to a "Start free trial" link to sign-up.
+  action?: React.ReactNode;
+}) {
   return (
     <Card
       className={cn(
@@ -21,7 +33,7 @@ export function PricingCard({ tier }: { tier: PricingTier }) {
       )}
       <CardHeader>
         <p className="text-sm font-semibold text-neutral-muted">{tier.name}</p>
-        <p className="text-3xl font-bold text-brand-navy">{tier.price}</p>
+        <p className="text-3xl font-bold text-brand-navy">{tier.priceLabel}</p>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
         <ul className="flex-1 space-y-2">
@@ -32,16 +44,26 @@ export function PricingCard({ tier }: { tier: PricingTier }) {
             </li>
           ))}
         </ul>
-        <Button
-          asChild
-          variant={tier.featured ? "default" : "outline"}
-          className="w-full"
-        >
-          <Link href={tier.checkoutUrl ?? "/login"}>
-            {tier.checkoutUrl ? "Get started" : "Coming soon"}
-          </Link>
-        </Button>
+        {action ?? (
+          <Button
+            asChild
+            variant={tier.featured ? "default" : "outline"}
+            className="w-full"
+          >
+            <Link href="/login">Start 14-day free trial</Link>
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
+}
+
+export function toTier(plan: PlanInfo): PricingTier {
+  return {
+    key: plan.key,
+    name: plan.name,
+    priceLabel: plan.priceLabel,
+    features: plan.features,
+    featured: plan.featured,
+  };
 }

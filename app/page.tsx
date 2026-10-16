@@ -2,8 +2,8 @@ import Link from "next/link";
 import { FileSignature, PenTool, Send, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { PricingCard } from "@/components/shared/PricingCard";
-import { PRICING_TIERS } from "@/lib/lemonsqueezy";
+import { PricingCard, toTier } from "@/components/shared/PricingCard";
+import { PLANS } from "@/lib/billing";
 
 const STEPS = [
   {
@@ -28,7 +28,7 @@ const STEPS = [
     icon: Wallet,
     title: "You get paid",
     description:
-      "Both of you get a signed PDF by email. Deposits land straight in your account.",
+      "Both of you get a signed PDF by email. The deposit goes straight to your bank through Stripe.",
   },
 ];
 
@@ -52,18 +52,21 @@ export default function LandingPage() {
             <span className="text-brand-cyan">in one link.</span>
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base text-neutral-muted sm:text-lg">
-            ProposalKit is simpler than Proposify, cheaper than PandaDoc, and
-            the only tool that collects a deposit the moment your client
-            signs.
+            Send a proposal your client can read on their phone, sign in a
+            minute, and pay the deposit on the spot. One link, no client
+            login.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg">
-              <Link href="/login">Start free</Link>
+              <Link href="/login">Start your 14-day free trial</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
               <Link href="#pricing">See pricing</Link>
             </Button>
           </div>
+          <p className="mt-3 text-xs text-neutral-muted">
+            No credit card needed. Your client never has to create an account.
+          </p>
         </section>
 
         {/* How it works */}
@@ -98,11 +101,12 @@ export default function LandingPage() {
               Simple pricing for solo freelancers and small agencies
             </h2>
             <p className="mb-10 text-center text-sm text-neutral-muted">
-              No US entity required — Lemon Squeezy handles tax for you.
+              14 days free, no card required. Cancel any time. ProposalKit
+              takes no cut of your deposits.
             </p>
-            <div className="grid gap-6 sm:grid-cols-3">
-              {PRICING_TIERS.map((tier) => (
-                <PricingCard key={tier.plan} tier={tier} />
+            <div className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-2">
+              {Object.values(PLANS).map((plan) => (
+                <PricingCard key={plan.key} tier={toTier(plan)} />
               ))}
             </div>
           </div>

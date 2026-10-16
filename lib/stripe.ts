@@ -19,3 +19,14 @@ export function formatDeposit(cents: number) {
     currency: "USD",
   });
 }
+
+/**
+ * Optional platform fee on client deposits, in basis points (100 = 1%).
+ * Defaults to 0: the freelancer keeps the whole deposit minus Stripe's own
+ * processing fee.
+ */
+export function platformFeeFor(amountCents: number) {
+  const bps = Number(process.env.PLATFORM_FEE_BPS ?? 0);
+  if (!Number.isFinite(bps) || bps <= 0) return 0;
+  return Math.floor((amountCents * Math.min(bps, 1000)) / 10_000);
+}
