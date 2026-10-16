@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { FileSignature, PenTool, Send, Wallet } from "lucide-react";
 
@@ -114,6 +115,23 @@ export default function LandingPage() {
       </main>
 
       <footer className="border-t border-neutral-border py-8 text-center text-sm text-neutral-muted">
+        <div className="mx-auto mb-6 flex max-w-md items-center justify-center gap-3 text-left">
+          <Image
+            src="/team/bius-founder.webp"
+            alt="Bius Michael Joseph, Founder and CEO of Ivula Technologies"
+            width={48}
+            height={48}
+            className="size-12 rounded-full object-cover ring-2 ring-brand-cyan/40"
+          />
+          <p className="leading-snug">
+            Built by{" "}
+            <span className="font-semibold text-brand-navy">
+              Bius Michael Joseph
+            </span>
+            <br />
+            Founder &amp; CEO, Ivula Technologies
+          </p>
+        </div>
         © {new Date().getFullYear()} ProposalKit. Built for freelancers and
         consultants.
       </footer>
