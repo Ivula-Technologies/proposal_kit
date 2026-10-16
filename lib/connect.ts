@@ -6,11 +6,12 @@ export async function syncConnectedAccount(
   supabase: SupabaseClient,
   account: Stripe.Account
 ) {
-  await supabase
+  const { error } = await supabase
     .from("profiles")
     .update({
       charges_enabled: !!account.charges_enabled,
       payouts_enabled: !!account.payouts_enabled,
     })
     .eq("stripe_account_id", account.id);
+  if (error) throw new Error(`connect sync failed: ${error.message}`);
 }
