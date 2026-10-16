@@ -29,10 +29,10 @@ One Stripe account runs both ProposalKit's own subscription and **Connect**, whi
    STRIPE_SECRET_KEY=sk_test_... APP_URL=https://proposalkit.ivulatechnologies.com node scripts/stripe-setup.mjs
    ```
 
-   It creates the ProposalKit product, the **Solo $29/mo** and **Pro $59/mo** prices, and two webhooks pointing at `/api/webhooks/stripe` (one for your account, one for connected accounts), then prints `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_PRO`, `STRIPE_WEBHOOK_SECRET` and `STRIPE_CONNECT_WEBHOOK_SECRET`. It refuses live keys unless you add `--live`, and re-running it is safe.
+   It creates (or updates) the ProposalKit product, the **Solo $29/mo** and **Pro $59/mo** prices, and two webhooks pointing at `/api/webhooks/stripe` (one for your account, one for connected accounts), then prints `STRIPE_PRICE_SOLO`, `STRIPE_PRICE_PRO`, `STRIPE_WEBHOOK_SECRET` and `STRIPE_CONNECT_WEBHOOK_SECRET`. It refuses live keys unless you add `--live`, and re-running it is safe.
 3. Settings > Billing > Customer portal: turn it on, allow cancelling and switching between Solo and Pro.
 
-By hand instead: create the product and two monthly prices; add a webhook to `https://proposalkit.ivulatechnologies.com/api/webhooks/stripe` for `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`; add a second webhook to the same URL with **Listen to events on Connected accounts** for `account.updated`.
+By hand instead: create the product and two monthly prices; add a webhook to `https://proposalkit.ivulatechnologies.com/api/webhooks/stripe` for `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `customer.subscription.paused`, `customer.subscription.resumed`, `invoice.paid`, `invoice.payment_failed`; add a second webhook to the same URL with **Listen to events on Connected accounts** for `account.updated`.
 
 Until the price IDs are set, the plans show "Coming soon" and everyone stays on the 14-day free trial.
 
@@ -60,6 +60,14 @@ cp -a public cpanel-package/public
 2. **Setup Node.js App** > Create application: **Node.js 22** (the bundled Chromium needs 22.17+), mode Production, application root `proposalkit`, application URL `proposalkit.ivulatechnologies.com`, startup file `server.js`.
 3. Add every variable from `.env.example` under **Environment variables** (`NEXT_PUBLIC_APP_URL` must be the https address), then restart the app.
 4. Make sure SSL (AutoSSL) is active on the subdomain.
+5. **Trial reminders:** cPanel > **Cron Jobs**, once a day (e.g. 15:00 server time), add:
+
+   ```bash
+   curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" https://proposalkit.ivulatechnologies.com/api/cron/trial-reminders > /dev/null
+   ```
+
+   It emails people on the free trial 3 days before it ends and on the day it ends. Use the same value you set as `CRON_SECRET`.
+6. **Monitoring:** point UptimeRobot (free) at `https://proposalkit.ivulatechnologies.com/api/health`. It returns 200 when every setting is present and the database answers, otherwise 503 with the names of the missing settings.
 
 **PDFs on shared hosting.** Signed PDFs use a bundled headless Chromium that unpacks into `/tmp` on first use (about 60 MB) and needs roughly 512 MB of RAM while rendering. If your plan's limits block it, signing still works and the emails link to the signed proposal instead of attaching the PDF. A host-installed Chrome can be used instead by setting `PUPPETEER_EXECUTABLE_PATH`.
 

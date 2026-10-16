@@ -82,3 +82,28 @@ export async function sendSignedProposalEmail({
       : undefined,
   });
 }
+
+/** Plain-text transactional email (trial reminders). Returns null when email isn't configured. */
+export async function sendPlainEmail({
+  to,
+  subject,
+  text,
+  replyTo,
+}: {
+  to: string;
+  subject: string;
+  text: string;
+  replyTo?: string | null;
+}) {
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!process.env.RESEND_API_KEY || !from) return null;
+  const { data, error } = await getResend().emails.send({
+    from,
+    to,
+    replyTo: replyTo ?? undefined,
+    subject,
+    text,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
