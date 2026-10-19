@@ -1,10 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { FileSignature, PenTool, Send, Wallet } from "lucide-react";
+import { CalendarClock, FileSignature, PenTool, Send, Wallet } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PricingCard, toTier } from "@/components/shared/PricingCard";
 import { PLANS } from "@/lib/billing";
+import { BOOKING_URL } from "@/lib/booking";
 
 const STEPS = [
   {
@@ -40,9 +41,17 @@ export default function LandingPage() {
         <div className="text-lg font-bold text-brand-navy">
           Proposal<span className="text-brand-cyan">Kit</span>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/login">Sign in</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+            <a href={BOOKING_URL} target="_blank" rel="noreferrer">
+              <CalendarClock className="h-4 w-4" />
+              Book a call
+            </a>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/login">Sign in</Link>
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1">
@@ -110,6 +119,17 @@ export default function LandingPage() {
                 <PricingCard key={plan.key} tier={toTier(plan)} />
               ))}
             </div>
+            <p className="mt-8 text-center text-sm text-neutral-muted">
+              Questions before you start?{" "}
+              <a
+                href={BOOKING_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-brand-navy underline-offset-4 hover:underline"
+              >
+                Book a free Google Meet call with our founder
+              </a>
+            </p>
           </div>
         </section>
       </main>
@@ -130,6 +150,15 @@ export default function LandingPage() {
             </span>
             <br />
             Founder &amp; CEO, Ivula Technologies
+            <br />
+            <a
+              href={BOOKING_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-brand-navy underline-offset-4 hover:underline"
+            >
+              Book a call with Bius
+            </a>
           </p>
         </div>
         © {new Date().getFullYear()} ProposalKit. Built for freelancers and
