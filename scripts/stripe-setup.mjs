@@ -35,6 +35,10 @@ const PLATFORM_EVENTS = [
   "customer.subscription.created",
   "customer.subscription.updated",
   "customer.subscription.deleted",
+  "customer.subscription.paused",
+  "customer.subscription.resumed",
+  "invoice.paid",
+  "invoice.payment_failed",
 ];
 const CONNECT_EVENTS = ["account.updated"];
 
@@ -67,6 +71,8 @@ async function ensureHook(connect, events, envName) {
   const kind = connect ? "connect" : "platform";
   const match = hooks.data.find((h) => h.url === webhookUrl && h.metadata?.kind === kind);
   if (match) {
+    // Keep an existing endpoint's event list current when this script grows.
+    await stripe.webhookEndpoints.update(match.id, { enabled_events: events });
     out[envName] = reused;
     return;
   }

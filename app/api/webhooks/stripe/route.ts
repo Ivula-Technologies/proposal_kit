@@ -54,14 +54,18 @@ async function syncSubscription(
       : subscription.customer.id;
   const userId = subscription.metadata?.user_id || fallbackUserId;
 
-  if (userId) {
-    await supabase
-      .from("profiles")
-      .update({ ...fields, stripe_customer_id: customerId })
-      .eq("id", userId);
-  } else {
-    await supabase.from("profiles").update(fields).eq("stripe_customer_id", customerId);
-  }
+  const { error } = userId
+    ? await supabase
+        .from("profiles")
+        .update({ ...fields, stripe_customer_id: customerId })
+        .eq("id", userId)
+    : await supabase.from("profiles").update(fields).eq("stripe_customer_id", customerId);
+  if (error) throw new Error(`profile sync failed: ${error.message}`);
+}
+
+function idOf(value: string | { id: string } | null | undefined) {
+  if (!value) return null;
+  return typeof value === "string" ? value : value.id;
 }
 
 export async function POST(request: Request) {
@@ -76,6 +80,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
+  try {
+    await handle(event);
+  } catch (err) {
+    // A 500 makes Stripe retry the event (with backoff, for up to 3 days),
+    // so a temporary database problem can't lose a paid deposit or plan.
+    console.error(`Stripe webhook ${event.type} ${event.id} failed`, err);
+    return NextResponse.json({ error: "Webhook handling failed" }, { status: 500 });
+  }
+
+  return NextResponse.json({ received: true });
+}
+
+async function handle(event: Stripe.Event) {
   const supabase = createServiceClient();
 
   switch (event.type) {
@@ -86,25 +103,20 @@ export async function POST(request: Request) {
       if (session.mode === "payment") {
         const proposalId = session.metadata?.proposal_id;
         if (proposalId && session.payment_status === "paid") {
-          await supabase
+          const { error } = await supabase
             .from("proposals")
             .update({
               deposit_paid: true,
               deposit_paid_at: new Date().toISOString(),
-              deposit_payment_intent:
-                typeof session.payment_intent === "string"
-                  ? session.payment_intent
-                  : session.payment_intent?.id ?? null,
+              deposit_payment_intent: idOf(session.payment_intent),
             })
             .eq("id", proposalId);
+          if (error) throw new Error(`deposit update failed: ${error.message}`);
         }
       }
 
-      if (session.mode === "subscription" && session.subscription) {
-        const subscriptionId =
-          typeof session.subscription === "string"
-            ? session.subscription
-            : session.subscription.id;
+      const subscriptionId = idOf(session.subscription);
+      if (session.mode === "subscription" && subscriptionId) {
         await syncSubscription(
           { id: subscriptionId } as Stripe.Subscription,
           session.client_reference_id
@@ -116,13 +128,24 @@ export async function POST(request: Request) {
     case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted":
+    case "customer.subscription.paused":
+    case "customer.subscription.resumed":
       await syncSubscription(event.data.object as Stripe.Subscription);
       break;
+
+    case "invoice.payment_failed":
+    case "invoice.paid": {
+      // Moves the plan to past_due (and back) as soon as Stripe knows.
+      const invoice = event.data.object as Stripe.Invoice;
+      const subscriptionId = idOf(invoice.parent?.subscription_details?.subscription);
+      if (subscriptionId) {
+        await syncSubscription({ id: subscriptionId } as Stripe.Subscription);
+      }
+      break;
+    }
 
     case "account.updated":
       await syncConnectedAccount(supabase, event.data.object as Stripe.Account);
       break;
   }
-
-  return NextResponse.json({ received: true });
 }
