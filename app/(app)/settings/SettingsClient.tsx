@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PricingCard, type PricingTier } from "@/components/shared/PricingCard";
 import type { Entitlement } from "@/lib/billing";
+import { BOOKING_URL } from "@/lib/booking";
 import type { Plan } from "@/types";
 
 interface SettingsProfile {
@@ -248,6 +249,18 @@ export function SettingsClient({
               ))}
             </div>
           )}
+
+          <p className="text-sm text-neutral-muted">
+            Questions about plans, deposits or setup?{" "}
+            <a
+              href={BOOKING_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-brand-navy hover:underline"
+            >
+              Book a free call with our founder
+            </a>
+          </p>
         </CardContent>
       </Card>
     </div>
