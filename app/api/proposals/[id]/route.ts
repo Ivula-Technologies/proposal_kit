@@ -161,14 +161,27 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { error } = await supabase
+  if (!isUuid(params.id)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Signed proposals are the record of an agreement, so they stay.
+  const { data, error } = await supabase
     .from("proposals")
     .delete()
     .eq("id", params.id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .neq("status", "signed")
+    .select("id");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  if (!data?.length) {
+    return NextResponse.json(
+      { error: "Signed proposals can't be deleted" },
+      { status: 409 }
+    );
   }
 
   return NextResponse.json({ ok: true });

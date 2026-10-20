@@ -23,6 +23,23 @@ const emailShell = (brand: string, title: string, bodyHtml: string) => `
 </div>
 `;
 
+export function emailConfigured() {
+  return !!process.env.RESEND_API_KEY && !!process.env.RESEND_FROM_EMAIL;
+}
+
+// "Acme Studio <proposals@yourdomain.com>": the freelancer's name on the
+// verified ProposalKit sending address.
+function senderAs(from: string, name: string | null) {
+  if (!name) return from;
+  return `${name.replace(/["<>]/g, "")} <${from.replace(/^.*<|>$/g, "")}>`;
+}
+
+const button = (href: string, label: string) =>
+  `<p style="margin:28px 0;"><a href="${escapeHtml(href)}" style="background:#0F1A3E; color:#ffffff; padding:12px 22px; border-radius:6px; text-decoration:none; font-weight:600; display:inline-block;">${escapeHtml(label)}</a></p>`;
+
+const paragraph = (html: string) =>
+  `<p style="color:#1A1F2E; line-height:1.6;">${html}</p>`;
+
 interface SendSignedProposalEmailArgs {
   to: string;
   proposalTitle: string;
@@ -62,9 +79,7 @@ export async function sendSignedProposalEmail({
   const brand = businessName || "ProposalKit";
   // Show the freelancer's business as the sender name on client emails.
   const fromHeader =
-    recipientLabel === "client" && businessName
-      ? `${businessName.replace(/["<>]/g, "")} <${from.replace(/^.*<|>$/g, "")}>`
-      : from;
+    recipientLabel === "client" ? senderAs(from, businessName) : from;
 
   return getResend().emails.send({
     from: fromHeader,
@@ -103,6 +118,85 @@ export async function sendPlainEmail({
     replyTo: replyTo ?? undefined,
     subject,
     text,
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/** The proposal link, emailed to the client from the freelancer's name. */
+export async function sendProposalToClient({
+  to,
+  clientName,
+  proposalTitle,
+  proposalUrl,
+  senderName,
+  message,
+  depositLabel,
+  replyTo,
+}: {
+  to: string;
+  clientName: string | null;
+  proposalTitle: string;
+  proposalUrl: string;
+  senderName: string;
+  message: string | null;
+  depositLabel: string | null;
+  replyTo: string | null;
+}) {
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!process.env.RESEND_API_KEY || !from) return null;
+
+  const greeting = clientName ? `Hi ${escapeHtml(clientName)},` : "Hi,";
+  const note = message
+    ? escapeHtml(message).replace(/\n/g, "<br />")
+    : `Here's my proposal for <strong>${escapeHtml(proposalTitle)}</strong>. You can read it on any device and sign it online in about a minute. No account needed.`;
+  const deposit = depositLabel
+    ? paragraph(`After you sign, you can pay the ${escapeHtml(depositLabel)} deposit by card to book the project.`)
+    : "";
+
+  const body = `
+    ${paragraph(greeting)}
+    ${paragraph(note)}
+    ${button(proposalUrl, "Review and sign")}
+    ${deposit}
+    ${paragraph(`Questions? Just reply to this email.<br />${escapeHtml(senderName)}`)}
+  `;
+
+  const { data, error } = await getResend().emails.send({
+    from: senderAs(from, senderName),
+    to,
+    replyTo: replyTo ?? undefined,
+    subject: `Proposal: ${proposalTitle}`,
+    html: emailShell(senderName, proposalTitle, body),
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/** Tells the freelancer something happened on a proposal (opened, deposit paid). */
+export async function sendOwnerNotice({
+  to,
+  subject,
+  title,
+  lines,
+  linkUrl,
+  linkLabel,
+}: {
+  to: string;
+  subject: string;
+  title: string;
+  lines: string[];
+  linkUrl: string;
+  linkLabel: string;
+}) {
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!process.env.RESEND_API_KEY || !from) return null;
+  const body = lines.map((line) => paragraph(escapeHtml(line))).join("") + button(linkUrl, linkLabel);
+  const { data, error } = await getResend().emails.send({
+    from,
+    to,
+    subject,
+    html: emailShell("ProposalKit", title, body),
   });
   if (error) throw new Error(error.message);
   return data;

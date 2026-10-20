@@ -6,12 +6,39 @@ import { Button } from "@/components/ui/button";
 import { PricingCard, toTier } from "@/components/shared/PricingCard";
 import { PLANS } from "@/lib/billing";
 
+const FAQS = [
+  {
+    q: "Does my client need an account?",
+    a: "No. They open the link on any phone or laptop, read the proposal, sign with a finger or by typing their name, and pay the deposit if you asked for one.",
+  },
+  {
+    q: "Are the e-signatures legally valid?",
+    a: "Electronic signatures are valid for most business agreements in the US under the federal ESIGN Act and state UETA laws. ProposalKit records the signer's name, signature, IP address and time, and emails a signed PDF to both of you.",
+  },
+  {
+    q: "Where does the deposit money go?",
+    a: "Straight to your own Stripe account and on to your bank. ProposalKit never holds it and takes no cut. Stripe's standard card fee (2.9% + 30¢) comes out of the deposit, like any card payment.",
+  },
+  {
+    q: "Will I know when my client opens it?",
+    a: "Yes. You get an email the first time your client opens the proposal, another when they sign, and another when the deposit is paid.",
+  },
+  {
+    q: "Do I have to write proposals from scratch?",
+    a: "No. Start from a consulting, design, web build or monthly retainer template with scope, pricing and terms already written, then fill in the brackets.",
+  },
+  {
+    q: "What happens after the free trial?",
+    a: "Pick Solo or Pro to keep creating proposals. If you don't, links you already sent keep working and your clients can still sign them. Cancel any time from Settings.",
+  },
+];
+
 const STEPS = [
   {
     icon: FileSignature,
     title: "Create a proposal",
     description:
-      "Start from a template or a blank page. Add your pitch, pricing, and terms.",
+      "Pick a consulting, design, web build or retainer template. Scope, pricing and terms are already written.",
   },
   {
     icon: Send,
@@ -95,6 +122,26 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* FAQ */}
+        <section className="py-16">
+          <div className="mx-auto max-w-3xl px-4 sm:px-8">
+            <h2 className="mb-8 text-center text-2xl font-bold text-brand-navy">
+              Questions freelancers ask
+            </h2>
+            <div className="divide-y divide-neutral-border rounded-lg border border-neutral-border bg-white">
+              {FAQS.map(({ q, a }) => (
+                <details key={q} className="group px-4 py-4 sm:px-6">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-brand-navy">
+                    {q}
+                    <span className="text-brand-cyan transition-transform group-open:rotate-45">+</span>
+                  </summary>
+                  <p className="mt-2 text-sm leading-relaxed text-neutral-muted">{a}</p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Pricing */}
         <section id="pricing" className="py-16 sm:py-24">
           <div className="mx-auto max-w-5xl px-4 sm:px-8">
@@ -103,7 +150,8 @@ export default function LandingPage() {
             </h2>
             <p className="mb-10 text-center text-sm text-neutral-muted">
               14 days free, no card required. Cancel any time. ProposalKit
-              takes no cut of your deposits.
+              takes no cut of your deposits; only Stripe&apos;s standard 2.9% +
+              30¢ card fee applies.
             </p>
             <div className="mx-auto grid max-w-3xl gap-6 sm:grid-cols-2">
               {Object.values(PLANS).map((plan) => (

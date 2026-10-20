@@ -33,8 +33,8 @@ freelancer's own Stripe Express account; ProposalKit takes no cut by default.
    ```
 
 2. **Create a Supabase project** and run `supabase/schema.sql` in the SQL
-   editor, followed by `supabase/seed.sql` for the default proposal
-   templates.
+   editor. The proposal templates are built into the app
+   (`lib/templates.ts`), so there's nothing to seed.
 
 3. **Copy the environment file** and fill in your keys:
 
@@ -76,7 +76,7 @@ app/
     settings/              Business name, payouts (Connect), plan and billing
   upgrade/                Redirects to Settings > billing
   api/
-    proposals/             CRUD for proposals
+    proposals/             CRUD, duplicate, and Send to client (email)
     sign/                   Handles signature submit + status update
     pdf/                    Puppeteer: render proposal to PDF
     checkout/               Deposit checkout, paid to the freelancer's Connect account
@@ -88,9 +88,10 @@ components/
   shared/                 ProposalCard, Editor, SignaturePad, StatusBadge, Navbar, Sidebar
 lib/
   supabase/               Browser, server, and middleware Supabase clients
-  resend.ts                Signed-proposal email helper
+  resend.ts                Proposal, signed-copy and owner alert emails
+  templates.ts             Built-in proposal templates
   pdf.ts                    Puppeteer PDF renderer
-  stripe.ts                 Stripe client + optional platform fee
+  stripe.ts                 Stripe client + deposit application fee
   billing.ts                Plans, free trial and entitlement checks
   connect.ts                Syncs Connect account status
   rate-limit.ts, validate.ts  Public-route guards
@@ -98,7 +99,6 @@ types/
   index.ts                Shared TypeScript types + Supabase Database type
 supabase/
   schema.sql               Tables, RLS policies, storage bucket (safe to re-run)
-  seed.sql                  Default proposal templates
 ```
 
 ## Deploying

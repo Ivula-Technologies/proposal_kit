@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Eye, Loader2, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import type { JSONContent } from "@tiptap/react";
 
@@ -37,12 +37,16 @@ export function PublicProposalClient({
   showBranding,
   depositsEnabled,
   depositJustPaid = false,
+  isOwnerPreview = false,
+  contactEmail = null,
 }: {
   proposal: PublicProposal;
   businessName: string | null;
   showBranding: boolean;
   depositsEnabled: boolean;
   depositJustPaid?: boolean;
+  isOwnerPreview?: boolean;
+  contactEmail?: string | null;
 }) {
   const [signed, setSigned] = useState(proposal.status === "signed");
   const [payingDeposit, setPayingDeposit] = useState(false);
@@ -59,8 +63,16 @@ export function PublicProposalClient({
   );
   const [submitting, setSubmitting] = useState(false);
 
+  const depositOnSign =
+    depositsEnabled && !!proposal.deposit_amount && proposal.deposit_amount > 0;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (isOwnerPreview) {
+      toast.message("This is your preview. Your client signs from the same link.");
+      return;
+    }
 
     if (!signerName.trim()) {
       toast.error("Enter your name");
@@ -90,7 +102,11 @@ export function PublicProposalClient({
       }
 
       setSigned(true);
-      toast.success("Signed! A copy has been emailed to you.");
+      toast.success(
+        signerEmail.trim()
+          ? "Signed! A copy is on its way to your inbox."
+          : "Signed! The sender has been notified."
+      );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to sign");
     } finally {
@@ -121,6 +137,15 @@ export function PublicProposalClient({
 
   return (
     <div className="min-h-screen bg-neutral-bg px-4 py-8 sm:py-12">
+      {isOwnerPreview && (
+        <div className="mx-auto mb-6 flex max-w-[720px] items-start gap-2 rounded-md border border-brand-cyan/40 bg-brand-light px-4 py-3 text-sm text-brand-navy">
+          <Eye className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            Preview: this is exactly what your client sees. Opening it
+            yourself doesn&apos;t mark it as viewed.
+          </span>
+        </div>
+      )}
       <div className="mx-auto max-w-[720px]">
         <div className="mb-6 text-center text-sm font-semibold text-brand-navy">
           {businessName ?? (
@@ -223,6 +248,16 @@ export function PublicProposalClient({
                       <SignaturePad onChange={setSignatureDataUrl} />
                     </div>
 
+                    {depositOnSign && !proposal.deposit_paid && (
+                      <p className="rounded-md bg-neutral-bg px-3 py-2 text-sm text-neutral-muted">
+                        After signing, you&apos;ll be asked to pay a{" "}
+                        <strong className="text-brand-navy">
+                          {formatUsd(proposal.deposit_amount!)}
+                        </strong>{" "}
+                        deposit by card to book the project.
+                      </p>
+                    )}
+
                     <p className="text-xs text-neutral-muted">
                       By signing, you agree to this proposal and to sign
                       electronically. Your name, signature, IP address and
@@ -232,12 +267,12 @@ export function PublicProposalClient({
                     <Button
                       type="submit"
                       className="w-full"
-                      disabled={submitting}
+                      disabled={submitting || isOwnerPreview}
                     >
                       {submitting && (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       )}
-                      Sign & submit
+                      {isOwnerPreview ? "Your client signs here" : "Sign & submit"}
                     </Button>
                   </form>
                 </CardContent>
@@ -246,8 +281,24 @@ export function PublicProposalClient({
           </div>
         </div>
 
+        <div className="mt-6 flex flex-col items-center gap-2 text-center text-xs text-neutral-muted sm:flex-row sm:justify-center sm:gap-4">
+          <span className="flex items-center gap-1">
+            <Lock className="h-3.5 w-3.5" />
+            E-signatures are valid under the US ESIGN Act, and each one is timestamped
+          </span>
+          {contactEmail && (
+            <a
+              href={`mailto:${contactEmail}?subject=${encodeURIComponent(`Question about ${proposal.title}`)}`}
+              className="flex items-center gap-1 font-medium text-brand-navy hover:underline"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              Questions? Email {businessName ?? "the sender"}
+            </a>
+          )}
+        </div>
+
         {showBranding && (
-          <p className="mt-6 text-center text-xs text-neutral-muted">
+          <p className="mt-4 text-center text-xs text-neutral-muted">
             Sent with{" "}
             <a href="/" className="font-semibold text-brand-navy">
               Proposal<span className="text-brand-cyan">Kit</span>

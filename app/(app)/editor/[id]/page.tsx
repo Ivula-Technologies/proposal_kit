@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { loadEntitlement } from "@/lib/billing";
+import { emailConfigured } from "@/lib/resend";
 import { EditorClient } from "./EditorClient";
 
 export default async function EditorPage({
@@ -28,6 +29,7 @@ export default async function EditorPage({
       proposal={proposal}
       canEdit={entitlement.canEdit}
       payoutsReady={!!profile?.charges_enabled}
+      emailReady={emailConfigured()}
     />
   );
 }
