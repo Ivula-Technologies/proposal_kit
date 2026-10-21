@@ -13,20 +13,35 @@ export function getStripe() {
   return stripeClient;
 }
 
-export function formatDeposit(cents: number) {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-}
-
 /**
- * Optional platform fee on client deposits, in basis points (100 = 1%).
- * Defaults to 0: the freelancer keeps the whole deposit minus Stripe's own
- * processing fee.
+ * The application fee taken from each client deposit.
+ *
+ * Deposits are destination charges, and on a destination charge Stripe
+ * bills its processing fee to the platform (ProposalKit), not to the
+ * freelancer. So the fee always recovers Stripe's card fee (2.9% + 30¢ for
+ * US cards by default; set STRIPE_FEE_BPS / STRIPE_FEE_FIXED_CENTS if your
+ * Stripe pricing differs), and the freelancer ends up with what any card
+ * payment would leave them. PLATFORM_FEE_BPS (default 0) adds a ProposalKit
+ * cut on top, in basis points (100 = 1%).
  */
 export function platformFeeFor(amountCents: number) {
-  const bps = Number(process.env.PLATFORM_FEE_BPS ?? 0);
-  if (!Number.isFinite(bps) || bps <= 0) return 0;
-  return Math.floor((amountCents * Math.min(bps, 1000)) / 10_000);
+  const setting = (name: string, fallback: number, max: number) => {
+    const value = Number(process.env[name] ?? fallback);
+    return Number.isFinite(value) && value > 0 ? Math.min(value, max) : 0;
+  };
+  const stripeBps = setting("STRIPE_FEE_BPS", 290, 1000);
+  const stripeFixed = setting("STRIPE_FEE_FIXED_CENTS", 30, 500);
+  const platformBps = setting("PLATFORM_FEE_BPS", 0, 1000);
+
+  const fee =
+    Math.ceil((amountCents * stripeBps) / 10_000) +
+    stripeFixed +
+    Math.floor((amountCents * platformBps) / 10_000);
+  // Never take the whole deposit (Stripe's $0.50 minimum keeps this sane).
+  return Math.min(fee, amountCents - 1);
+}
+
+/** What the freelancer receives from a deposit, after fees. */
+export function depositNetFor(amountCents: number) {
+  return amountCents - platformFeeFor(amountCents);
 }

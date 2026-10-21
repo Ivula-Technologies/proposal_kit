@@ -2,8 +2,16 @@ import Link from "next/link";
 import { format } from "date-fns";
 
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { formatUsd } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Proposal } from "@/types";
+
+function activity(proposal: Proposal) {
+  const at = (iso: string) => format(new Date(iso), "MMM d");
+  if (proposal.signed_at) return `Signed ${at(proposal.signed_at)}`;
+  if (proposal.viewed_at) return `Opened ${at(proposal.viewed_at)}`;
+  return `Created ${at(proposal.created_at)}`;
+}
 
 export function ProposalCard({ proposal }: { proposal: Proposal }) {
   return (
@@ -25,8 +33,8 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
                   }
                 >
                   {proposal.deposit_paid
-                    ? `Deposit paid ($${(proposal.deposit_amount / 100).toLocaleString()})`
-                    : `Deposit $${(proposal.deposit_amount / 100).toLocaleString()}`}
+                    ? `Deposit paid (${formatUsd(proposal.deposit_amount)})`
+                    : `Deposit ${formatUsd(proposal.deposit_amount)}`}
                 </span>
               ) : null}
             </p>
@@ -34,7 +42,7 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
           <div className="flex shrink-0 flex-col items-end gap-2">
             <StatusBadge status={proposal.status} />
             <span className="text-xs text-neutral-muted">
-              {format(new Date(proposal.created_at), "MMM d, yyyy")}
+              {activity(proposal)}
             </span>
           </div>
         </CardContent>

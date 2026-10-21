@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   const base = appUrl(request);
   const {
     data: { user },
-  } = await createClient().auth.getUser();
+  } = await (await createClient()).auth.getUser();
   if (!user) {
     return NextResponse.redirect(`${base}/login?next=/settings`, 303);
   }

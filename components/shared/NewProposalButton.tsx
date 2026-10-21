@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Loader2, FileText, Plus } from "lucide-react";
 import { toast } from "sonner";
 
-import { createClient } from "@/lib/supabase/client";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,47 +13,28 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import type { Template } from "@/types";
+import { BUILT_IN_TEMPLATES } from "@/lib/templates";
 
 export function NewProposalButton({
   children,
   ...buttonProps
 }: ButtonProps) {
   const [open, setOpen] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<string | null>(null);
   const router = useRouter();
 
-  async function openPicker() {
-    setOpen(true);
-    setLoadingTemplates(true);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("templates")
-      .select("*")
-      .eq("is_default", true)
-      .order("name");
-    setTemplates(data ?? []);
-    setLoadingTemplates(false);
-  }
-
-  async function createProposal(template: Template | null) {
-    setCreating(true);
+  async function createProposal(template: string | null) {
+    setCreating(template ?? "blank");
 
     const res = await fetch("/api/proposals", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: template ? template.name : "Untitled proposal",
-        content: template?.content ?? null,
-      }),
+      body: JSON.stringify(template ? { template } : {}),
     });
 
-    setCreating(false);
-    setOpen(false);
-
     if (res.status === 403) {
+      setCreating(null);
+      setOpen(false);
       const body = await res.json().catch(() => ({}));
       toast.error(body.error ?? "Choose a plan to keep creating proposals");
       router.push("/settings#billing");
@@ -62,6 +42,7 @@ export function NewProposalButton({
     }
 
     if (!res.ok) {
+      setCreating(null);
       toast.error("Couldn't create proposal");
       return;
     }
@@ -72,7 +53,7 @@ export function NewProposalButton({
 
   return (
     <>
-      <Button onClick={openPicker} {...buttonProps}>
+      <Button onClick={() => setOpen(true)} {...buttonProps}>
         {children ?? (
           <>
             <Plus className="h-4 w-4" />
@@ -86,54 +67,73 @@ export function NewProposalButton({
           <DialogHeader>
             <DialogTitle>Start a new proposal</DialogTitle>
             <DialogDescription>
-              Pick a template to start faster, or start from a blank page.
+              Each template has a full scope, pricing and terms you can edit. Replace anything in [brackets].
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-2">
-            <button
+          <div className="grid max-h-[60vh] gap-2 overflow-y-auto">
+            {BUILT_IN_TEMPLATES.map((template) => (
+              <PickerOption
+                key={template.key}
+                title={template.name}
+                description={template.description}
+                highlighted
+                loading={creating === template.key}
+                disabled={creating !== null}
+                onClick={() => createProposal(template.key)}
+              />
+            ))}
+            <PickerOption
+              title="Blank proposal"
+              description="Start from an empty page"
+              loading={creating === "blank"}
+              disabled={creating !== null}
               onClick={() => createProposal(null)}
-              disabled={creating}
-              className="flex items-center gap-3 rounded-md border border-neutral-border p-3 text-left hover:border-brand-cyan hover:bg-brand-light disabled:opacity-50"
-            >
-              <FileText className="h-5 w-5 text-neutral-muted" />
-              <div>
-                <p className="text-sm font-medium text-brand-navy">
-                  Blank proposal
-                </p>
-                <p className="text-xs text-neutral-muted">
-                  Start from scratch
-                </p>
-              </div>
-            </button>
-
-            {loadingTemplates ? (
-              <div className="flex justify-center py-4">
-                <Loader2 className="h-4 w-4 animate-spin text-neutral-muted" />
-              </div>
-            ) : (
-              templates.map((template) => (
-                <button
-                  key={template.id}
-                  onClick={() => createProposal(template)}
-                  disabled={creating}
-                  className="flex items-center gap-3 rounded-md border border-neutral-border p-3 text-left hover:border-brand-cyan hover:bg-brand-light disabled:opacity-50"
-                >
-                  <FileText className="h-5 w-5 text-brand-cyan" />
-                  <div>
-                    <p className="text-sm font-medium text-brand-navy">
-                      {template.name}
-                    </p>
-                    <p className="text-xs capitalize text-neutral-muted">
-                      {template.category}
-                    </p>
-                  </div>
-                </button>
-              ))
-            )}
+            />
           </div>
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function PickerOption({
+  title,
+  description,
+  highlighted = false,
+  loading,
+  disabled,
+  onClick,
+}: {
+  title: string;
+  description: string;
+  highlighted?: boolean;
+  loading: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-3 rounded-md border border-neutral-border p-3 text-left hover:border-brand-cyan hover:bg-brand-light disabled:opacity-50"
+    >
+      {loading ? (
+        <Loader2 className="h-5 w-5 shrink-0 animate-spin text-neutral-muted" />
+      ) : (
+        <FileText
+          className={
+            highlighted
+              ? "h-5 w-5 shrink-0 text-brand-cyan"
+              : "h-5 w-5 shrink-0 text-neutral-muted"
+          }
+        />
+      )}
+      <div>
+        <p className="text-sm font-medium text-brand-navy">{title}</p>
+        <p className="text-xs text-neutral-muted">{description}</p>
+      </div>
+    </button>
   );
 }
