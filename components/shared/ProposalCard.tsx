@@ -2,6 +2,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { formatUsd } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Proposal } from "@/types";
 
@@ -32,8 +33,8 @@ export function ProposalCard({ proposal }: { proposal: Proposal }) {
                   }
                 >
                   {proposal.deposit_paid
-                    ? `Deposit paid ($${(proposal.deposit_amount / 100).toLocaleString()})`
-                    : `Deposit $${(proposal.deposit_amount / 100).toLocaleString()}`}
+                    ? `Deposit paid (${formatUsd(proposal.deposit_amount)})`
+                    : `Deposit ${formatUsd(proposal.deposit_amount)}`}
                 </span>
               ) : null}
             </p>

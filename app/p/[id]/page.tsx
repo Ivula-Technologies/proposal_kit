@@ -9,11 +9,10 @@ import { PublicProposalClient } from "./PublicProposalClient";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { id: string };
+export async function generateMetadata(props: {
+  params: Promise<{ id: string }>;
 }): Promise<Metadata> {
+  const params = await props.params;
   // Proposals are private to whoever has the link.
   const robots = { index: false, follow: false };
   if (!isUuid(params.id)) return { robots };
@@ -25,13 +24,11 @@ export async function generateMetadata({
   return { title: data?.title ? `${data.title} | Proposal` : "Proposal", robots };
 }
 
-export default async function PublicProposalPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams: { deposit?: string };
+export default async function PublicProposalPage(props: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ deposit?: string }>;
 }) {
+  const [params, searchParams] = await Promise.all([props.params, props.searchParams]);
   if (!isUuid(params.id)) notFound();
   const supabase = createServiceClient();
 
@@ -53,7 +50,7 @@ export default async function PublicProposalPage({
   // downgraded.
   const {
     data: { user },
-  } = await createClient().auth.getUser();
+  } = await (await createClient()).auth.getUser();
   const isOwner = user?.id === proposal.user_id;
   if (!proposal.viewed_at && !isOwner) {
     const nextStatus = proposal.status === "signed" ? "signed" : "viewed";

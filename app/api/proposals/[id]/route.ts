@@ -65,9 +65,10 @@ function parseUpdates(body: Record<string, unknown>): Updates | string {
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -136,7 +137,8 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Proposal query failed", error);
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
   if (!data) {
     return NextResponse.json(
@@ -150,9 +152,10 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -175,7 +178,8 @@ export async function DELETE(
     .select("id");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Proposal query failed", error);
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
   if (!data?.length) {
     return NextResponse.json(

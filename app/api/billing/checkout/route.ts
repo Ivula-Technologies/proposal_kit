@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const {
     data: { user },
-  } = await createClient().auth.getUser();
+  } = await (await createClient()).auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { appUrl, loadEntitlement, UPGRADE_REQUIRED } from "@/lib/billing";
+import { formatUsd } from "@/lib/format";
 import { rateLimit } from "@/lib/rate-limit";
 import { emailConfigured, sendProposalToClient } from "@/lib/resend";
 import { isEmail, isUuid } from "@/lib/validate";
@@ -12,11 +13,12 @@ export const runtime = "nodejs";
 // replies going to the freelancer. Marks a draft as sent.
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   const {
     data: { user },
-  } = await createClient().auth.getUser();
+  } = await (await createClient()).auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -77,10 +79,7 @@ export async function POST(
     profile?.business_name || profile?.full_name || user.email || "Your consultant";
   const depositLabel =
     proposal.deposit_amount && profile?.charges_enabled
-      ? (proposal.deposit_amount / 100).toLocaleString("en-US", {
-          style: "currency",
-          currency: "USD",
-        })
+      ? formatUsd(proposal.deposit_amount)
       : null;
 
   try {

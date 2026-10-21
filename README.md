@@ -14,7 +14,7 @@ freelancer's own Stripe Express account; ProposalKit takes no cut by default.
 
 ## Stack
 
-- Next.js 14 (App Router, TypeScript)
+- Next.js 15 (App Router, TypeScript, React 19)
 - Tailwind CSS + shadcn/ui
 - Supabase (Postgres + Auth + Storage)
 - TipTap rich text editor
@@ -53,6 +53,12 @@ freelancer's own Stripe Express account; ProposalKit takes no cut by default.
 
    The app boots at [http://localhost:3000](http://localhost:3000) with a
    working login page.
+
+5. **Before pushing**, run the same checks as CI:
+
+   ```bash
+   npm run lint && npx tsc --noEmit && npm test
+   ```
 
 ### PDF generation locally
 

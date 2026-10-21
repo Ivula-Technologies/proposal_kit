@@ -5,12 +5,11 @@ import { loadEntitlement } from "@/lib/billing";
 import { emailConfigured } from "@/lib/resend";
 import { EditorClient } from "./EditorClient";
 
-export default async function EditorPage({
-  params,
-}: {
-  params: { id: string };
+export default async function EditorPage(props: {
+  params: Promise<{ id: string }>;
 }) {
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const { data: proposal } = await supabase
     .from("proposals")
     .select("*")

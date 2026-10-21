@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
 import { appUrl, planFromPriceId } from "@/lib/billing";
 import { sendOwnerNotice } from "@/lib/resend";
+import { formatUsd } from "@/lib/format";
 import { syncConnectedAccount } from "@/lib/connect";
 
 export const runtime = "nodejs";
@@ -78,10 +79,7 @@ async function notifyDepositPaid(proposal: {
       .eq("id", proposal.user_id)
       .maybeSingle();
     if (!owner?.email) return;
-    const amount = ((proposal.deposit_amount ?? 0) / 100).toLocaleString("en-US", {
-      style: "currency",
-      currency: "USD",
-    });
+    const amount = formatUsd(proposal.deposit_amount ?? 0);
     const who = proposal.client_name || "Your client";
     await sendOwnerNotice({
       to: owner.email,

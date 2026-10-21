@@ -6,7 +6,7 @@ It lets them create proposals, attach contracts, collect e-signatures,
 and receive a deposit — all in one shareable link.
 
 ## Tech stack
-- Framework: Next.js 14 (App Router, TypeScript)
+- Framework: Next.js 15 (App Router, TypeScript, React 19)
 - Styling: Tailwind CSS + shadcn/ui components
 - Database: Supabase (PostgreSQL + Auth + Storage)
 - Email: Resend

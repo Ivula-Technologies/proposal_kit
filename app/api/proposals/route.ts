@@ -6,7 +6,7 @@ import { builtInTemplate } from "@/lib/templates";
 import { isUuid } from "@/lib/validate";
 
 export async function GET() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -22,14 +22,15 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Proposal query failed", error);
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 
   return NextResponse.json({ proposals: data });
 }
 
 export async function POST(request: Request) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -91,7 +92,8 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Proposal query failed", error);
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 
   return NextResponse.json({ proposal: data }, { status: 201 });

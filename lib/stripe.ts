@@ -13,13 +13,6 @@ export function getStripe() {
   return stripeClient;
 }
 
-export function formatDeposit(cents: number) {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-}
-
 /**
  * The application fee taken from each client deposit.
  *

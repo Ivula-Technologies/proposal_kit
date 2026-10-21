@@ -7,6 +7,7 @@ import { CheckCircle2, Circle, FileText } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProposalCard } from "@/components/shared/ProposalCard";
 import { NewProposalButton } from "@/components/shared/NewProposalButton";
+import { formatUsd } from "@/lib/format";
 import type { Proposal, ProposalStatus } from "@/types";
 
 const FILTERS: { label: string; value: ProposalStatus | "all" }[] = [
@@ -16,14 +17,6 @@ const FILTERS: { label: string; value: ProposalStatus | "all" }[] = [
   { label: "Viewed", value: "viewed" },
   { label: "Signed", value: "signed" },
 ];
-
-function formatUsd(cents: number) {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-}
 
 export function DashboardClient({
   initialProposals,
@@ -128,7 +121,7 @@ export function DashboardClient({
           {[
             { label: "Waiting on client", value: String(stats.awaiting) },
             { label: "Signed", value: String(stats.signed) },
-            { label: "Deposits collected", value: formatUsd(stats.collected) },
+            { label: "Deposits collected", value: formatUsd(stats.collected, { whole: true }) },
           ].map((stat) => (
             <div key={stat.label} className="rounded-lg border border-neutral-border bg-white p-3 sm:p-4">
               <p className="text-xs text-neutral-muted">{stat.label}</p>

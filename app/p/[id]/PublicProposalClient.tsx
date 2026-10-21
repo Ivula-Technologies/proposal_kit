@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { CheckCircle2, Eye, Loader2, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import type { JSONContent } from "@tiptap/react";
@@ -11,14 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatUsd } from "@/lib/format";
 import type { Proposal } from "@/types";
-
-function formatUsd(cents: number) {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-}
 
 export type PublicProposal = Pick<
   Proposal,
@@ -300,9 +295,9 @@ export function PublicProposalClient({
         {showBranding && (
           <p className="mt-4 text-center text-xs text-neutral-muted">
             Sent with{" "}
-            <a href="/" className="font-semibold text-brand-navy">
+            <Link href="/" className="font-semibold text-brand-navy">
               Proposal<span className="text-brand-cyan">Kit</span>
-            </a>
+            </Link>
           </p>
         )}
       </div>
