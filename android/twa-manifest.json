@@ -1,0 +1,52 @@
+{
+  "publicDir": "../public",
+  "packageId": "com.ivulatechnologies.proposalkit",
+  "host": "proposalkit.ivulatechnologies.com",
+  "name": "ProposalKit",
+  "launcherName": "ProposalKit",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#0F1A3E",
+  "themeColorDark": "#0F1A3E",
+  "navigationColor": "#0F1A3E",
+  "navigationColorDark": "#0F1A3E",
+  "navigationDividerColor": "#0F1A3E",
+  "navigationDividerColorDark": "#0F1A3E",
+  "backgroundColor": "#F8FAFC",
+  "enableNotifications": false,
+  "startUrl": "/dashboard?app=android",
+  "iconUrl": "https://proposalkit.ivulatechnologies.com/icons/icon-512.png",
+  "maskableIconUrl": "https://proposalkit.ivulatechnologies.com/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "upload.jks",
+    "alias": "upload"
+  },
+  "appVersionCode": 1,
+  "appVersion": "1.0.0",
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "shortName": "Dashboard",
+      "url": "https://proposalkit.ivulatechnologies.com/dashboard",
+      "chosenIconUrl": "https://proposalkit.ivulatechnologies.com/icons/icon-512.png"
+    },
+    {
+      "name": "Settings",
+      "shortName": "Settings",
+      "url": "https://proposalkit.ivulatechnologies.com/settings",
+      "chosenIconUrl": "https://proposalkit.ivulatechnologies.com/icons/icon-512.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://proposalkit.ivulatechnologies.com/",
+  "minSdkVersion": 24
+}

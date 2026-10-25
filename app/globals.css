@@ -53,3 +53,12 @@
     font-family: "Segoe Script", "Brush Script MT", cursive;
   }
 }
+
+/* Inside the Google Play app nothing about prices or payment for ProposalKit
+   itself shows (lib/app-platform.ts). Plans are chosen on the website. */
+html[data-app="android"] [data-hide-in-app] {
+  display: none !important;
+}
+html:not([data-app="android"]) [data-only-in-app] {
+  display: none !important;
+}
