@@ -67,6 +67,17 @@ On Linux servers it uses the bundled `@sparticuz/chromium` (Node 22.17+).
 On macOS/Windows, point `PUPPETEER_EXECUTABLE_PATH` in `.env.local` at a
 Chrome/Chromium binary on your machine.
 
+## Phone app
+
+ProposalKit installs as a phone app straight from the browser (no app store).
+On Android or Chrome, open the site and tap **Install** on the banner. On an
+iPhone, open it in Safari, tap Share, then **Add to Home Screen**. It opens
+full screen on the dashboard and shows a friendly page when offline. The
+pieces are `app/manifest.ts`, `public/sw.js`, `public/offline.html`,
+`public/icons/` and `components/shared/InstallBanner.tsx`. The service worker
+only caches build files and icons, never pages or API responses. Installing
+needs HTTPS, which AutoSSL provides on cPanel.
+
 ## Project structure
 
 ```

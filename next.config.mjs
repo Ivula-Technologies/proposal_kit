@@ -9,6 +9,18 @@ const nextConfig = {
     "/api/sign": ["./node_modules/@sparticuz/chromium/bin/**"],
     "/api/pdf": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
+  // Phones must pick up a new service worker on the next visit.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

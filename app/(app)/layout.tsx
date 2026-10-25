@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadEntitlement } from "@/lib/billing";
 import { Navbar } from "@/components/shared/Navbar";
 import { Sidebar } from "@/components/shared/Sidebar";
+import { InstallBanner } from "@/components/shared/InstallBanner";
 
 export default async function AppLayout({
   children,
@@ -31,8 +32,9 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen h-dvh flex-col pt-[env(safe-area-inset-top)]">
       <Navbar email={user.email ?? null} />
+      <InstallBanner />
       {banner && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-brand-navy px-4 py-2 text-center text-sm text-white">
           <span>{banner}</span>
@@ -43,7 +45,7 @@ export default async function AppLayout({
       )}
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+        <main className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
           {children}
         </main>
       </div>

@@ -13,6 +13,6 @@ export const config = {
      * server-to-server endpoints (Stripe webhooks, cron, health checks) that
      * never carry a user session, so they skip the Supabase auth round trip.
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|api/cron|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|offline.html|icons/|apple-touch-icon.png|api/webhooks|api/cron|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
