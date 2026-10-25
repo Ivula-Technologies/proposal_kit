@@ -48,5 +48,5 @@
   "isChromeOSOnly": false,
   "isMetaQuest": false,
   "fullScopeUrl": "https://proposalkit.ivulatechnologies.com/",
-  "minSdkVersion": 21
+  "minSdkVersion": 24
 }
