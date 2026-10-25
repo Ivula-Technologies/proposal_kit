@@ -170,7 +170,9 @@ export function SettingsClient({
               </p>
               <p className="text-neutral-muted">
                 Client deposits are paid to your own Stripe account and
-                deposited into your bank. ProposalKit never holds your money.
+                deposited into your bank. ProposalKit never holds your money
+                and takes no cut. Stripe&apos;s standard card fee (2.9% + 30¢)
+                comes out of each deposit.
               </p>
               <Button asChild variant="outline">
                 <a href="/api/connect/dashboard">
@@ -184,7 +186,8 @@ export function SettingsClient({
               <p className="text-neutral-muted">
                 Connect a bank account through Stripe to ask for a deposit
                 when your client signs. It takes about five minutes and the
-                money goes straight to you.
+                money goes straight to you. ProposalKit takes no cut; only
+                Stripe&apos;s standard card fee (2.9% + 30¢) applies.
               </p>
               <Button asChild>
                 <a href="/api/connect/onboard">

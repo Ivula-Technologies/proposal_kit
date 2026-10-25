@@ -1,4 +1,6 @@
-import { generateHTML } from "@tiptap/core";
+// The server build of generateHTML: @tiptap/core's version needs a browser DOM
+// and throws "window is not defined" in Node.
+import { generateHTML } from "@tiptap/html/server";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import type { JSONContent } from "@tiptap/core";

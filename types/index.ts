@@ -50,16 +50,6 @@ export interface Signature {
 
 export type TemplateCategory = "consulting" | "design" | "dev" | "marketing";
 
-export interface Template {
-  id: string;
-  user_id: string | null;
-  name: string;
-  category: TemplateCategory | null;
-  content: Record<string, unknown> | null;
-  is_default: boolean;
-  created_at: string;
-}
-
 export interface Database {
   public: {
     Tables: {
@@ -80,11 +70,6 @@ export interface Database {
           signer_name: string;
         };
         Update: Partial<Signature>;
-      };
-      templates: {
-        Row: Template;
-        Insert: Partial<Template> & { name: string };
-        Update: Partial<Template>;
       };
     };
   };

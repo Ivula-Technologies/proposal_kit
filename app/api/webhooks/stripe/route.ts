@@ -3,7 +3,9 @@ import type Stripe from "stripe";
 
 import { createServiceClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
-import { planFromPriceId } from "@/lib/billing";
+import { appUrl, planFromPriceId } from "@/lib/billing";
+import { sendOwnerNotice } from "@/lib/resend";
+import { formatUsd } from "@/lib/format";
 import { syncConnectedAccount } from "@/lib/connect";
 
 export const runtime = "nodejs";
@@ -63,6 +65,39 @@ async function syncSubscription(
   if (error) throw new Error(`profile sync failed: ${error.message}`);
 }
 
+async function notifyDepositPaid(proposal: {
+  id: string;
+  title: string;
+  client_name: string | null;
+  user_id: string;
+  deposit_amount: number | null;
+}) {
+  try {
+    const { data: owner } = await createServiceClient()
+      .from("profiles")
+      .select("email")
+      .eq("id", proposal.user_id)
+      .maybeSingle();
+    if (!owner?.email) return;
+    const amount = formatUsd(proposal.deposit_amount ?? 0);
+    const who = proposal.client_name || "Your client";
+    await sendOwnerNotice({
+      to: owner.email,
+      subject: `${who} paid the ${amount} deposit`,
+      title: "Deposit received",
+      lines: [
+        `${who} paid the ${amount} deposit for "${proposal.title}".`,
+        "Stripe pays it out to your bank on your normal payout schedule. Time to schedule the kickoff.",
+      ],
+      linkUrl: `${appUrl()}/editor/${proposal.id}`,
+      linkLabel: "Open the proposal",
+    });
+  } catch (err) {
+    // The deposit is already recorded; a missed email isn't worth a retry.
+    console.error("Failed to send deposit notice", err);
+  }
+}
+
 function idOf(value: string | { id: string } | null | undefined) {
   if (!value) return null;
   return typeof value === "string" ? value : value.id;
@@ -103,15 +138,19 @@ async function handle(event: Stripe.Event) {
       if (session.mode === "payment") {
         const proposalId = session.metadata?.proposal_id;
         if (proposalId && session.payment_status === "paid") {
-          const { error } = await supabase
+          const { data: paid, error } = await supabase
             .from("proposals")
             .update({
               deposit_paid: true,
               deposit_paid_at: new Date().toISOString(),
               deposit_payment_intent: idOf(session.payment_intent),
             })
-            .eq("id", proposalId);
+            .eq("id", proposalId)
+            .eq("deposit_paid", false)
+            .select("id, title, client_name, user_id, deposit_amount");
           if (error) throw new Error(`deposit update failed: ${error.message}`);
+          // Only the event that flipped it notifies, so retries don't repeat it.
+          if (paid?.[0]) await notifyDepositPaid(paid[0]);
         }
       }
 
