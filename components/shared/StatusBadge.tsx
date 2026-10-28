@@ -29,6 +29,12 @@ const STATUS_CONFIG: Record<
     text: "text-status-signed",
     bg: "bg-status-signed/10",
   },
+  declined: {
+    label: "Declined",
+    dot: "bg-status-declined",
+    text: "text-status-declined",
+    bg: "bg-status-declined/10",
+  },
 };
 
 export function StatusBadge({

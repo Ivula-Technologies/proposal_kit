@@ -435,6 +435,7 @@ export function EditorClient({
           expiresOn={expiresOn}
           followup={followup}
           emailReady={emailReady}
+          declined={status === "declined" ? { at: proposal.declined_at, reason: proposal.decline_reason } : null}
           onToggle={toggleAutoRemind}
         />
       )}
@@ -550,7 +551,9 @@ function FollowupBar({
   followup,
   emailReady,
   onToggle,
+  declined,
 }: {
+  declined: { at: string | null; reason: string | null } | null;
   status: string;
   clientEmail: string;
   expiresOn: string;
@@ -560,6 +563,17 @@ function FollowupBar({
 }) {
   const bar = "flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-neutral-border bg-white px-4 py-2 text-center text-xs text-neutral-muted md:px-6";
 
+  if (declined) {
+    return (
+      <div className="border-b border-status-declined/30 bg-status-declined/10 px-4 py-2 text-center text-xs text-brand-navy md:px-6">
+        Your client declined this proposal
+        {declined.at
+          ? ` on ${new Date(declined.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+          : ""}
+        {declined.reason ? <>: &ldquo;{declined.reason}&rdquo;</> : "."} Edit it and use Send again to reopen it for signing.
+      </div>
+    );
+  }
   if (isExpired(expiresOn)) {
     return (
       <div className={bar}>

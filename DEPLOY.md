@@ -78,7 +78,7 @@ cp -a public cpanel-package/public
 3. Create a proposal from a template, set a **$1** deposit, add a client email you can read, then **Send to client**. **Preview** shows a preview banner and won't let you sign your own proposal.
 4. Open the emailed link in a private window. You should get a "just opened" email. Sign and pay with `4242 4242 4242 4242`. Check: the dashboard shows Signed and Deposit paid; both inboxes get the signed copy; you get a "deposit received" email; the payment shows under the connected account in Stripe, with a 33¢ application fee (2.9% + 30¢) on the platform side.
 5. Settings > **Choose Solo**, pay with the test card; the page should show Solo within a few seconds.
-6. Follow-ups: in Supabase SQL, run `update proposals set sent_at = now() - interval '3 days 1 hour' where id = '<a sent, unsigned proposal>';`, then run the daily cron command. The client gets "Following up: …" and the editor shows the next follow-up date. Set a past **Valid until** date and the client page says it expired and can't be signed.
+6. Follow-ups: in Supabase SQL, run `update proposals set sent_at = now() - interval '3 days 1 hour' where id = '<a sent, unsigned proposal>';`, then run the daily cron command. The client gets "Following up: …" and the editor shows the next follow-up date. Set a past **Valid until** date and the client page says it expired and can't be signed. From the client link, **Request changes** and then **Decline** should each email you, and a declined proposal shows Declined on the dashboard until you Send again.
 7. `curl -i https://proposalkit.ivulatechnologies.com/api/pdf?proposalId=00000000-0000-0000-0000-000000000000` returns **401**.
 
 ## Going live

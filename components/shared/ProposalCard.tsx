@@ -10,6 +10,7 @@ import type { Proposal } from "@/types";
 function activity(proposal: Proposal) {
   const at = (iso: string) => format(new Date(iso), "MMM d");
   if (proposal.signed_at) return `Signed ${at(proposal.signed_at)}`;
+  if (proposal.declined_at) return `Declined ${at(proposal.declined_at)}`;
   if (isExpired(proposal.expires_on)) return "Expired";
   if (proposal.viewed_at) return `Opened ${at(proposal.viewed_at)}`;
   if (proposal.sent_at) return `Sent ${at(proposal.sent_at)}`;

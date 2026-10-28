@@ -59,6 +59,7 @@ const config: Config = {
           sent: "#3B82F6",
           viewed: "#EAB308",
           signed: "#22C55E",
+          declined: "#EF4444",
         },
       },
       borderRadius: {

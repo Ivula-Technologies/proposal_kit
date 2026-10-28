@@ -116,10 +116,15 @@ export async function POST(
   let status = proposal.status;
   const { error } = await service
     .from("proposals")
-    .update(status === "draft" ? { ...followup, status: "sent" } : followup)
+    .update(
+      // Sending a declined proposal again reopens it for signing.
+      status === "draft" || status === "declined"
+        ? { ...followup, status: "sent", declined_at: null, decline_reason: null }
+        : followup
+    )
     .eq("id", proposal.id)
     .neq("status", "signed");
-  if (!error && status === "draft") status = "sent";
+  if (!error && (status === "draft" || status === "declined")) status = "sent";
 
   return NextResponse.json({ ok: true, status, ...followup });
 }

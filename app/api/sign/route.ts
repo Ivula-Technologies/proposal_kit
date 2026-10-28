@@ -65,9 +65,15 @@ export async function POST(request: Request) {
 
   const { data: current } = await supabase
     .from("proposals")
-    .select("expires_on")
+    .select("expires_on, status")
     .eq("id", proposalId)
     .maybeSingle();
+  if (current?.status === "declined") {
+    return NextResponse.json(
+      { error: "This proposal was declined. Ask for an updated one." },
+      { status: 409 }
+    );
+  }
   if (current && isExpired(current.expires_on)) {
     return NextResponse.json(
       { error: "This proposal has expired. Ask for an updated one." },
@@ -82,7 +88,7 @@ export async function POST(request: Request) {
     .from("proposals")
     .update({ status: "signed", signed_at: signedAt })
     .eq("id", proposalId)
-    .neq("status", "signed")
+    .in("status", ["draft", "sent", "viewed"])
     .select("*")
     .maybeSingle();
 

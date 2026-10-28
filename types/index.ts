@@ -1,6 +1,6 @@
 export type Plan = "solo" | "pro";
 
-export type ProposalStatus = "draft" | "sent" | "viewed" | "signed";
+export type ProposalStatus = "draft" | "sent" | "viewed" | "signed" | "declined";
 
 export interface Profile {
   id: string;
@@ -37,6 +37,8 @@ export interface Proposal {
   auto_remind: boolean;
   reminders_sent: number;
   expires_on: string | null; // YYYY-MM-DD, last day it can be signed
+  declined_at: string | null;
+  decline_reason: string | null;
   created_at: string;
   updated_at: string;
 }

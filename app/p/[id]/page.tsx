@@ -54,7 +54,8 @@ export default async function PublicProposalPage(props: {
   } = await (await createClient()).auth.getUser();
   const isOwner = user?.id === proposal.user_id;
   if (!proposal.viewed_at && !isOwner) {
-    const nextStatus = proposal.status === "signed" ? "signed" : "viewed";
+    const nextStatus =
+      proposal.status === "signed" || proposal.status === "declined" ? proposal.status : "viewed";
     const viewedAt = new Date().toISOString();
     const { data: claimed } = await supabase
       .from("proposals")
@@ -93,6 +94,7 @@ export default async function PublicProposalPage(props: {
         deposit_amount: proposal.deposit_amount,
         deposit_paid: proposal.deposit_paid,
       }}
+      declined={proposal.status === "declined"}
       businessName={profile?.business_name ?? null}
       showBranding={entitlement.showBranding}
       depositsEnabled={!!profile?.charges_enabled}

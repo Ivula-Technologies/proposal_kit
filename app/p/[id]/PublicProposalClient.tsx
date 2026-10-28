@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, Eye, Loader2, Lock, Mail } from "lucide-react";
+import { CalendarClock, CheckCircle2, Eye, Loader2, Lock, Mail, MessageSquare, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { JSONContent } from "@tiptap/react";
 
@@ -12,6 +12,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { formatUsd } from "@/lib/format";
 import type { Proposal } from "@/types";
 
@@ -36,6 +45,7 @@ export function PublicProposalClient({
   contactEmail = null,
   validUntil = null,
   expired = false,
+  declined: initiallyDeclined = false,
 }: {
   proposal: PublicProposal;
   businessName: string | null;
@@ -47,6 +57,7 @@ export function PublicProposalClient({
   /** "Nov 10, 2026", formatted on the server. */
   validUntil?: string | null;
   expired?: boolean;
+  declined?: boolean;
 }) {
   const [signed, setSigned] = useState(proposal.status === "signed");
   const [payingDeposit, setPayingDeposit] = useState(false);
@@ -62,6 +73,12 @@ export function PublicProposalClient({
     null
   );
   const [submitting, setSubmitting] = useState(false);
+  const [declined, setDeclined] = useState(initiallyDeclined);
+  const [changesSent, setChangesSent] = useState(false);
+  const [respondAction, setRespondAction] = useState<"changes" | "decline" | null>(null);
+  const [respondMessage, setRespondMessage] = useState("");
+  const [responding, setResponding] = useState(false);
+  const sender = businessName ?? "the sender";
 
   const depositOnSign =
     depositsEnabled && !!proposal.deposit_amount && proposal.deposit_amount > 0;
@@ -111,6 +128,41 @@ export function PublicProposalClient({
       toast.error(err instanceof Error ? err.message : "Failed to sign");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleRespond() {
+    if (!respondAction) return;
+    if (respondAction === "changes" && !respondMessage.trim()) {
+      toast.error("Tell them what you'd like changed");
+      return;
+    }
+    setResponding(true);
+    try {
+      const res = await fetch(`/api/proposals/${proposal.id}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: respondAction,
+          message: respondMessage,
+          name: signerName,
+          email: signerEmail,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Something went wrong");
+      if (respondAction === "decline") {
+        setDeclined(true);
+      } else {
+        setChangesSent(true);
+        toast.success(`Sent. ${sender} will get back to you with an updated proposal.`);
+      }
+      setRespondAction(null);
+      setRespondMessage("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setResponding(false);
     }
   }
 
@@ -218,6 +270,17 @@ export function PublicProposalClient({
                   </div>
                 )}
               </div>
+            ) : declined ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-center">
+                <XCircle className="h-10 w-10 text-status-declined" />
+                <h2 className="text-lg font-semibold text-brand-navy">
+                  This proposal was declined
+                </h2>
+                <p className="max-w-sm text-sm text-neutral-muted">
+                  {sender} has been told. If you change your mind, ask them to
+                  send it again.
+                </p>
+              </div>
             ) : expired ? (
               <div className="flex flex-col items-center gap-2 py-8 text-center">
                 <CalendarClock className="h-10 w-10 text-neutral-muted" />
@@ -299,6 +362,29 @@ export function PublicProposalClient({
                       {isOwnerPreview ? "Your client signs here" : "Sign & submit"}
                     </Button>
                   </form>
+                  {!isOwnerPreview && (
+                    <div className="flex flex-col items-center gap-2 border-t border-neutral-border pt-4 text-sm text-neutral-muted sm:flex-row sm:justify-center">
+                      {changesSent ? (
+                        <span>
+                          Your change request was sent. {sender} will follow up
+                          with an updated proposal.
+                        </span>
+                      ) : (
+                        <>
+                          <span>Not quite right?</span>
+                          <div className="flex gap-2">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setRespondAction("changes")}>
+                              <MessageSquare className="h-3.5 w-3.5" />
+                              Request changes
+                            </Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => setRespondAction("decline")}>
+                              Decline
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -320,6 +406,63 @@ export function PublicProposalClient({
             </a>
           )}
         </div>
+
+        <Dialog open={respondAction !== null} onOpenChange={(open) => !open && setRespondAction(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {respondAction === "decline" ? "Decline this proposal?" : "Request changes"}
+              </DialogTitle>
+              <DialogDescription>
+                {respondAction === "decline"
+                  ? `${sender} will be told. A short reason helps them, but it's optional.`
+                  : `Tell ${sender} what you'd like changed. They'll send you an updated proposal.`}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <Textarea
+                value={respondMessage}
+                onChange={(e) => setRespondMessage(e.target.value)}
+                maxLength={2000}
+                rows={5}
+                aria-label={respondAction === "decline" ? "Reason (optional)" : "What should change"}
+                placeholder={
+                  respondAction === "decline"
+                    ? "e.g. We went with another option this time."
+                    : "e.g. Can we split the deposit into two payments and move the start date to March?"
+                }
+              />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input
+                  value={signerName}
+                  onChange={(e) => setSignerName(e.target.value)}
+                  placeholder="Your name"
+                  aria-label="Your name"
+                />
+                <Input
+                  type="email"
+                  value={signerEmail}
+                  onChange={(e) => setSignerEmail(e.target.value)}
+                  placeholder="Your email (for their reply)"
+                  aria-label="Your email"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRespondAction(null)} disabled={responding}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRespond}
+                disabled={responding}
+                variant={respondAction === "decline" ? "destructive" : "default"}
+              >
+                {responding && <Loader2 className="h-4 w-4 animate-spin" />}
+                {respondAction === "decline" ? "Decline proposal" : "Send request"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {showBranding && (
           <p className="mt-4 text-center text-xs text-neutral-muted">

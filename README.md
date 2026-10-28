@@ -77,6 +77,11 @@ until** date; after that day the client page says it has expired and can't
 be signed. The schedule lives in `lib/followups.ts` and the daily job in
 `lib/cron/client-reminders.ts`, run by `/api/cron/daily`.
 
+Clients who aren't ready to sign can **Request changes** or **Decline**
+from the proposal page (`/api/proposals/[id]/respond`). The freelancer gets
+an email with the message (replies go to the client), follow-ups stop, and a
+declined proposal can't be signed until the freelancer uses **Send again**.
+
 ## Phone app
 
 ProposalKit installs as a phone app straight from the browser (no app store).

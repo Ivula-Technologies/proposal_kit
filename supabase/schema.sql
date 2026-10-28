@@ -92,13 +92,16 @@ alter table proposals add column if not exists sent_at          timestamptz;  --
 alter table proposals add column if not exists auto_remind      boolean default true;
 alter table proposals add column if not exists reminders_sent   integer default 0;
 alter table proposals add column if not exists expires_on       date;         -- last day it can be signed; null = never
+-- Client turned it down from the proposal page
+alter table proposals add column if not exists declined_at      timestamptz;
+alter table proposals add column if not exists decline_reason   text;
 
 do $$
 begin
-  if not exists (select 1 from pg_constraint where conname = 'proposals_status_check') then
-    alter table proposals add constraint proposals_status_check
-      check (status in ('draft', 'sent', 'viewed', 'signed'));
-  end if;
+  -- Recreated so re-running adds statuses introduced later (declined).
+  alter table proposals drop constraint if exists proposals_status_check;
+  alter table proposals add constraint proposals_status_check
+    check (status in ('draft', 'sent', 'viewed', 'signed', 'declined'));
   if not exists (select 1 from pg_constraint where conname = 'proposals_deposit_check') then
     alter table proposals add constraint proposals_deposit_check
       check (deposit_amount is null or deposit_amount between 50 and 10000000);
