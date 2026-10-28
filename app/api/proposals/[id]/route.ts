@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { loadEntitlement, UPGRADE_REQUIRED } from "@/lib/billing";
+import { parseExpiry } from "@/lib/followups";
 import {
   isEmail,
   isUuid,
@@ -53,6 +54,15 @@ function parseUpdates(body: Record<string, unknown>): Updates | string {
     } else {
       return "Deposit must be between $0.50 and $100,000";
     }
+  }
+  if ("expires_on" in body) {
+    const value = parseExpiry(body.expires_on);
+    if (value === undefined) return "Enter a valid date";
+    updates.expires_on = value;
+  }
+  if ("auto_remind" in body) {
+    if (typeof body.auto_remind !== "boolean") return "Invalid auto_remind";
+    updates.auto_remind = body.auto_remind;
   }
   if ("status" in body) {
     // Owners can only mark a draft as sent; viewed/signed are set by the

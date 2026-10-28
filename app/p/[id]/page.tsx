@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { appUrl, loadEntitlement } from "@/lib/billing";
+import { formatDay, isExpired } from "@/lib/followups";
 import { sendOwnerNotice } from "@/lib/resend";
 import { isUuid } from "@/lib/validate";
 import { PublicProposalClient } from "./PublicProposalClient";
@@ -98,6 +99,8 @@ export default async function PublicProposalPage(props: {
       depositJustPaid={searchParams.deposit === "success"}
       isOwnerPreview={isOwner}
       contactEmail={profile?.email ?? null}
+      validUntil={proposal.expires_on ? formatDay(proposal.expires_on) : null}
+      expired={isExpired(proposal.expires_on)}
     />
   );
 }

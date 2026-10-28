@@ -87,6 +87,11 @@ alter table proposals add column if not exists deposit_amount   integer;   -- ce
 alter table proposals add column if not exists deposit_paid     boolean default false;
 alter table proposals add column if not exists deposit_paid_at  timestamptz;
 alter table proposals add column if not exists deposit_payment_intent text;
+-- Follow-ups and expiry
+alter table proposals add column if not exists sent_at          timestamptz;  -- last emailed to the client
+alter table proposals add column if not exists auto_remind      boolean default true;
+alter table proposals add column if not exists reminders_sent   integer default 0;
+alter table proposals add column if not exists expires_on       date;         -- last day it can be signed; null = never
 
 do $$
 begin
@@ -101,6 +106,8 @@ begin
 end $$;
 
 create index if not exists proposals_user_created_idx on proposals (user_id, created_at desc);
+create index if not exists proposals_reminders_idx on proposals (sent_at)
+  where auto_remind and status in ('sent', 'viewed');
 
 alter table proposals enable row level security;
 drop policy if exists "owner only" on proposals;

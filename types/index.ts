@@ -33,6 +33,10 @@ export interface Proposal {
   deposit_paid: boolean;
   deposit_paid_at: string | null;
   deposit_payment_intent: string | null;
+  sent_at: string | null;
+  auto_remind: boolean;
+  reminders_sent: number;
+  expires_on: string | null; // YYYY-MM-DD, last day it can be signed
   created_at: string;
   updated_at: string;
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, Eye, Loader2, Lock, Mail } from "lucide-react";
+import { CalendarClock, CheckCircle2, Eye, Loader2, Lock, Mail } from "lucide-react";
 import { toast } from "sonner";
 import type { JSONContent } from "@tiptap/react";
 
@@ -34,6 +34,8 @@ export function PublicProposalClient({
   depositJustPaid = false,
   isOwnerPreview = false,
   contactEmail = null,
+  validUntil = null,
+  expired = false,
 }: {
   proposal: PublicProposal;
   businessName: string | null;
@@ -42,6 +44,9 @@ export function PublicProposalClient({
   depositJustPaid?: boolean;
   isOwnerPreview?: boolean;
   contactEmail?: string | null;
+  /** "Nov 10, 2026", formatted on the server. */
+  validUntil?: string | null;
+  expired?: boolean;
 }) {
   const [signed, setSigned] = useState(proposal.status === "signed");
   const [payingDeposit, setPayingDeposit] = useState(false);
@@ -160,6 +165,11 @@ export function PublicProposalClient({
                 Prepared for {proposal.client_name}
               </p>
             )}
+            {validUntil && !signed && (
+              <p className="mt-1 text-sm text-neutral-muted">
+                {expired ? "Expired" : "Valid until"} {validUntil}
+              </p>
+            )}
           </div>
 
           <Editor
@@ -206,6 +216,25 @@ export function PublicProposalClient({
                       Secure payment via Stripe
                     </p>
                   </div>
+                )}
+              </div>
+            ) : expired ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-center">
+                <CalendarClock className="h-10 w-10 text-neutral-muted" />
+                <h2 className="text-lg font-semibold text-brand-navy">
+                  This proposal expired on {validUntil}
+                </h2>
+                <p className="max-w-sm text-sm text-neutral-muted">
+                  It can no longer be signed. Ask {businessName ?? "the sender"} for
+                  an updated proposal.
+                </p>
+                {contactEmail && (
+                  <Button asChild variant="outline" className="mt-2">
+                    <a href={`mailto:${contactEmail}?subject=${encodeURIComponent(`Updated proposal: ${proposal.title}`)}`}>
+                      <Mail className="h-4 w-4" />
+                      Ask for an update
+                    </a>
+                  </Button>
                 )}
               </div>
             ) : (

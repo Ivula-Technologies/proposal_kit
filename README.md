@@ -67,6 +67,16 @@ On Linux servers it uses the bundled `@sparticuz/chromium` (Node 22.17+).
 On macOS/Windows, point `PUPPETEER_EXECUTABLE_PATH` in `.env.local` at a
 Chrome/Chromium binary on your machine.
 
+## Follow-ups and expiry
+
+When a proposal is emailed with **Send to client**, ProposalKit follows up
+with the client from the freelancer's name 3 and 7 days later if they
+haven't signed (the sender can turn this off in the Send dialog or from the
+editor). Each send restarts the clock. A proposal can also have a **Valid
+until** date; after that day the client page says it has expired and can't
+be signed. The schedule lives in `lib/followups.ts` and the daily job in
+`lib/cron/client-reminders.ts`, run by `/api/cron/daily`.
+
 ## Phone app
 
 ProposalKit installs as a phone app straight from the browser (no app store).
