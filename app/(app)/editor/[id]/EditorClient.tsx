@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  BellRing,
   Check,
   Copy,
   CopyPlus,
@@ -38,6 +39,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatDay, isExpired, nextReminderAt } from "@/lib/followups";
 import { isEmail } from "@/lib/validate";
 import type { Proposal } from "@/types";
 
@@ -96,6 +98,16 @@ export function EditorClient({
     proposal.deposit_amount ? String(proposal.deposit_amount / 100) : ""
   );
   const [status, setStatus] = useState(proposal.status);
+  const [expiresOn, setExpiresOn] = useState(proposal.expires_on ?? "");
+  const [followup, setFollowup] = useState({
+    sent_at: proposal.sent_at,
+    auto_remind: proposal.auto_remind ?? true,
+    reminders_sent: proposal.reminders_sent ?? 0,
+  });
+  const [remindOnSend, setRemindOnSend] = useState(proposal.auto_remind ?? true);
+  // Dates below depend on the viewer's time zone, so they render after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [sendOpen, setSendOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -128,6 +140,7 @@ export function EditorClient({
         ? { client_email: clientEmail.trim() || null }
         : {}),
       ...(payoutsReady ? { deposit_amount: depositAmount } : {}),
+      expires_on: expiresOn || null,
       content: contentRef.current,
     });
 
@@ -138,7 +151,7 @@ export function EditorClient({
     }
     setSaveState("saved");
     return true;
-  }, [title, clientName, clientEmail, depositDollars, payoutsReady, proposal.id]);
+  }, [title, clientName, clientEmail, depositDollars, expiresOn, payoutsReady, proposal.id]);
 
   const scheduleSave = useCallback(() => {
     if (locked) return;
@@ -222,7 +235,7 @@ export function EditorClient({
     const res = await fetch(`/api/proposals/${proposal.id}/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, remind: remindOnSend }),
     });
     const body = await res.json().catch(() => ({}));
     setSending(false);
@@ -232,7 +245,25 @@ export function EditorClient({
     }
     setSendOpen(false);
     if (body.status) setStatus(body.status);
+    if (body.sent_at) {
+      setFollowup({
+        sent_at: body.sent_at,
+        auto_remind: body.auto_remind,
+        reminders_sent: body.reminders_sent,
+      });
+    }
     toast.success(`Sent to ${clientEmail.trim()}. You'll get an email when they open it.`);
+  }
+
+  async function toggleAutoRemind(next: boolean) {
+    const { ok, error } = await patchProposal(proposal.id, { auto_remind: next });
+    if (!ok) {
+      toast.error(error ?? "Couldn't change follow-ups");
+      return;
+    }
+    setFollowup((f) => ({ ...f, auto_remind: next }));
+    setRemindOnSend(next);
+    toast.success(next ? "Automatic follow-ups are on" : "Automatic follow-ups are off");
   }
 
   async function handleDuplicate() {
@@ -338,6 +369,17 @@ export function EditorClient({
                 className="h-9 pl-7 sm:w-40"
               />
             </div>
+            <label className="col-span-2 flex h-9 items-center gap-2 rounded-md border border-input bg-white px-3 text-sm text-neutral-muted sm:col-span-1 sm:w-56" title="Last day your client can sign. Leave empty for no end date.">
+              <span className="shrink-0">Valid until</span>
+              <input
+                type="date"
+                value={expiresOn}
+                onChange={handleFieldChange(setExpiresOn)}
+                disabled={locked}
+                aria-label="Valid until"
+                className="min-w-0 flex-1 bg-transparent text-brand-navy outline-none"
+              />
+            </label>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -385,6 +427,18 @@ export function EditorClient({
           </div>
         </div>
       </div>
+
+      {mounted && status !== "signed" && canEdit && (
+        <FollowupBar
+          status={status}
+          clientEmail={clientEmail}
+          expiresOn={expiresOn}
+          followup={followup}
+          emailReady={emailReady}
+          declined={status === "declined" ? { at: proposal.declined_at, reason: proposal.decline_reason } : null}
+          onToggle={toggleAutoRemind}
+        />
+      )}
 
       {(status === "signed" || !canEdit || !payoutsReady) && (
         <div className="border-b border-neutral-border bg-brand-light px-4 py-2 text-center text-xs text-brand-navy md:px-6">
@@ -438,6 +492,20 @@ export function EditorClient({
               placeholder={`Hi ${clientName.trim() || "there"}, great talking today. Here's the proposal we discussed. Happy to jump on a call if you have questions.`}
             />
           </div>
+          <label className="flex items-start gap-2 text-sm text-brand-navy">
+            <input
+              type="checkbox"
+              checked={remindOnSend}
+              onChange={(e) => setRemindOnSend(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-brand-navy"
+            />
+            <span>
+              Follow up for me if they haven&apos;t signed
+              <span className="block text-xs text-neutral-muted">
+                A short, friendly reminder from your name 3 and 7 days after sending. It stops as soon as they sign.
+              </span>
+            </span>
+          </label>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendOpen(false)} disabled={sending}>
               Cancel
@@ -474,4 +542,83 @@ function SaveIndicator({ state }: { state: SaveState }) {
     return <span className="shrink-0 text-xs text-red-600">Not saved</span>;
   }
   return null;
+}
+
+function FollowupBar({
+  status,
+  clientEmail,
+  expiresOn,
+  followup,
+  emailReady,
+  onToggle,
+  declined,
+}: {
+  declined: { at: string | null; reason: string | null } | null;
+  status: string;
+  clientEmail: string;
+  expiresOn: string;
+  followup: { sent_at: string | null; auto_remind: boolean; reminders_sent: number };
+  emailReady: boolean;
+  onToggle: (next: boolean) => void;
+}) {
+  const bar = "flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-b border-neutral-border bg-white px-4 py-2 text-center text-xs text-neutral-muted md:px-6";
+
+  if (declined) {
+    return (
+      <div className="border-b border-status-declined/30 bg-status-declined/10 px-4 py-2 text-center text-xs text-brand-navy md:px-6">
+        Your client declined this proposal
+        {declined.at
+          ? ` on ${new Date(declined.at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+          : ""}
+        {declined.reason ? <>: &ldquo;{declined.reason}&rdquo;</> : "."} Edit it and use Send again to reopen it for signing.
+      </div>
+    );
+  }
+  if (isExpired(expiresOn)) {
+    return (
+      <div className={bar}>
+        <BellRing className="h-3.5 w-3.5" />
+        This proposal expired on {formatDay(expiresOn)}, so your client can&apos;t sign it.
+        Change the valid-until date to reopen it.
+      </div>
+    );
+  }
+  if (!emailReady || !followup.sent_at || status === "draft") return null;
+
+  const next = nextReminderAt({
+    status,
+    client_email: clientEmail.trim() || null,
+    expires_on: expiresOn || null,
+    ...followup,
+  });
+  const action = (label: string, value: boolean) => (
+    <button type="button" onClick={() => onToggle(value)} className="font-semibold text-brand-navy underline-offset-2 hover:underline">
+      {label}
+    </button>
+  );
+
+  if (!followup.auto_remind) {
+    return (
+      <div className={bar}>
+        <BellRing className="h-3.5 w-3.5" />
+        Automatic follow-ups are off. {action("Turn on", true)}
+      </div>
+    );
+  }
+  if (!next) {
+    return followup.reminders_sent > 0 ? (
+      <div className={bar}>
+        <BellRing className="h-3.5 w-3.5" />
+        {followup.reminders_sent === 1 ? "1 follow-up" : `${followup.reminders_sent} follow-ups`} sent. Send it again to restart them.
+      </div>
+    ) : null;
+  }
+  const when = next.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return (
+    <div className={bar}>
+      <BellRing className="h-3.5 w-3.5 text-brand-cyan" />
+      {followup.reminders_sent > 0 ? "Next follow-up" : "Automatic follow-up"} to your client on {when} if they haven&apos;t signed.
+      {action("Turn off", false)}
+    </div>
+  );
 }

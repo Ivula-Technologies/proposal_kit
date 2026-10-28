@@ -60,13 +60,13 @@ cp -a public cpanel-package/public
 2. **Setup Node.js App** > Create application: **Node.js 22** (the bundled Chromium needs 22.17+), mode Production, application root `proposalkit`, application URL `proposalkit.ivulatechnologies.com`, startup file `server.js`.
 3. Add every variable from `.env.example` under **Environment variables** (`NEXT_PUBLIC_APP_URL` must be the https address), then restart the app.
 4. Make sure SSL (AutoSSL) is active on the subdomain.
-5. **Trial reminders:** cPanel > **Cron Jobs**, once a day (e.g. 15:00 server time), add:
+5. **Daily emails:** cPanel > **Cron Jobs**, once a day (e.g. 15:00 server time), add:
 
    ```bash
-   curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" https://proposalkit.ivulatechnologies.com/api/cron/trial-reminders > /dev/null
+   curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" https://proposalkit.ivulatechnologies.com/api/cron/daily > /dev/null
    ```
 
-   It emails people on the free trial 3 days before it ends and on the day it ends. Use the same value you set as `CRON_SECRET`.
+   It emails people on the free trial 3 days before it ends and on the day it ends, and sends clients who haven't signed a short follow-up from the freelancer 3 and 7 days after the proposal was emailed. Use the same value you set as `CRON_SECRET`. If you already added the older `/api/cron/trial-reminders` job, replace it with this one (keeping both would send trial emails twice).
 6. **Monitoring:** point UptimeRobot (free) at `https://proposalkit.ivulatechnologies.com/api/health`. It returns 200 when every setting is present and the database answers, otherwise 503 with the names of the missing settings.
 
 **PDFs on shared hosting.** Signed PDFs use a bundled headless Chromium that unpacks into `/tmp` on first use (about 60 MB) and needs roughly 512 MB of RAM while rendering. If your plan's limits block it, signing still works and the emails link to the signed proposal instead of attaching the PDF. A host-installed Chrome can be used instead by setting `PUPPETEER_EXECUTABLE_PATH`.
@@ -78,7 +78,8 @@ cp -a public cpanel-package/public
 3. Create a proposal from a template, set a **$1** deposit, add a client email you can read, then **Send to client**. **Preview** shows a preview banner and won't let you sign your own proposal.
 4. Open the emailed link in a private window. You should get a "just opened" email. Sign and pay with `4242 4242 4242 4242`. Check: the dashboard shows Signed and Deposit paid; both inboxes get the signed copy; you get a "deposit received" email; the payment shows under the connected account in Stripe, with a 33¢ application fee (2.9% + 30¢) on the platform side.
 5. Settings > **Choose Solo**, pay with the test card; the page should show Solo within a few seconds.
-6. `curl -i https://proposalkit.ivulatechnologies.com/api/pdf?proposalId=00000000-0000-0000-0000-000000000000` returns **401**.
+6. Follow-ups: in Supabase SQL, run `update proposals set sent_at = now() - interval '3 days 1 hour' where id = '<a sent, unsigned proposal>';`, then run the daily cron command. The client gets "Following up: …" and the editor shows the next follow-up date. Set a past **Valid until** date and the client page says it expired and can't be signed. From the client link, **Request changes** and then **Decline** should each email you, and a declined proposal shows Declined on the dashboard until you Send again.
+7. `curl -i https://proposalkit.ivulatechnologies.com/api/pdf?proposalId=00000000-0000-0000-0000-000000000000` returns **401**.
 
 ## Going live
 
