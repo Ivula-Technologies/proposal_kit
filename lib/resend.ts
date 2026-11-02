@@ -201,3 +201,112 @@ export async function sendOwnerNotice({
   if (error) throw new Error(error.message);
   return data;
 }
+
+/** Automatic follow-up to a client who hasn't signed yet, from the freelancer's name. */
+export async function sendClientReminder({
+  to,
+  clientName,
+  proposalTitle,
+  proposalUrl,
+  senderName,
+  replyTo,
+  reminderNumber,
+  opened,
+  validUntil,
+}: {
+  to: string;
+  clientName: string | null;
+  proposalTitle: string;
+  proposalUrl: string;
+  senderName: string;
+  replyTo: string | null;
+  reminderNumber: number;
+  opened: boolean;
+  validUntil: string | null;
+}) {
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!process.env.RESEND_API_KEY || !from) return null;
+
+  const title = `<strong>${escapeHtml(proposalTitle)}</strong>`;
+  const greeting = clientName ? `Hi ${escapeHtml(clientName)},` : "Hi,";
+  const note =
+    reminderNumber > 1
+      ? `One last quick note on my proposal for ${title}. If the timing isn't right, just reply and let me know. If it is, you can sign online in about a minute.`
+      : opened
+        ? `Following up on my proposal for ${title}. Happy to answer questions or adjust anything before you sign.`
+        : `Just making sure my proposal for ${title} reached you. You can read it on any device and sign online in about a minute. No account needed.`;
+  const expiry = validUntil
+    ? paragraph(`The proposal is valid until ${escapeHtml(validUntil)}.`)
+    : "";
+
+  const body = `
+    ${paragraph(greeting)}
+    ${paragraph(note)}
+    ${button(proposalUrl, "Review and sign")}
+    ${expiry}
+    ${paragraph(`Thanks,<br />${escapeHtml(senderName)}`)}
+  `;
+
+  const { data, error } = await getResend().emails.send({
+    from: senderAs(from, senderName),
+    to,
+    replyTo: replyTo ?? undefined,
+    subject: `Following up: ${proposalTitle}`,
+    html: emailShell(senderName, proposalTitle, body),
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/** The client's change request or decline, sent to the freelancer with replies going to the client. */
+export async function sendClientResponseToOwner({
+  to,
+  action,
+  proposalTitle,
+  clientLabel,
+  clientEmail,
+  message,
+  editorUrl,
+}: {
+  to: string;
+  action: "changes" | "decline";
+  proposalTitle: string;
+  clientLabel: string;
+  clientEmail: string | null;
+  message: string | null;
+  editorUrl: string;
+}) {
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!process.env.RESEND_API_KEY || !from) return null;
+
+  const title = `<strong>${escapeHtml(proposalTitle)}</strong>`;
+  const who = escapeHtml(clientLabel);
+  const quoted = message
+    ? `<blockquote style="margin:16px 0; padding:12px 16px; border-left:3px solid #00C2FF; background:#F8FAFC; color:#1A1F2E; line-height:1.6;">${escapeHtml(message).replace(/\n/g, "<br />")}</blockquote>`
+    : "";
+  const body =
+    action === "changes"
+      ? `${paragraph(`${who} asked for changes to ${title}.`)}${quoted}${paragraph(
+          `Automatic follow-ups are paused. Edit the proposal, then use Send again so they get the updated link.${clientEmail ? " Reply to this email to answer them directly." : ""}`
+        )}`
+      : `${paragraph(`${who} declined ${title}.`)}${quoted}${paragraph(
+          `Follow-ups have stopped. If you revise it, Send again reopens it for signing.${clientEmail ? " Reply to this email to reach them." : ""}`
+        )}`;
+
+  const { data, error } = await getResend().emails.send({
+    from,
+    to,
+    replyTo: clientEmail ?? undefined,
+    subject:
+      action === "changes"
+        ? `${clientLabel} asked for changes to "${proposalTitle}"`
+        : `${clientLabel} declined "${proposalTitle}"`,
+    html: emailShell(
+      "ProposalKit",
+      action === "changes" ? "Your client asked for changes" : "Your proposal was declined",
+      body + button(editorUrl, "Open the proposal")
+    ),
+  });
+  if (error) throw new Error(error.message);
+  return data;
+}
