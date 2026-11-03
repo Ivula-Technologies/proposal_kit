@@ -16,6 +16,7 @@ const FILTERS: { label: string; value: ProposalStatus | "all" }[] = [
   { label: "Sent", value: "sent" },
   { label: "Viewed", value: "viewed" },
   { label: "Signed", value: "signed" },
+  { label: "Declined", value: "declined" },
 ];
 
 export function DashboardClient({

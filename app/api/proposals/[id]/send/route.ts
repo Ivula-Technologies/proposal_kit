@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { appUrl, loadEntitlement, UPGRADE_REQUIRED } from "@/lib/billing";
+import { isExpired } from "@/lib/followups";
 import { formatUsd } from "@/lib/format";
 import { rateLimit } from "@/lib/rate-limit";
 import { emailConfigured, sendProposalToClient } from "@/lib/resend";
@@ -43,6 +44,8 @@ export async function POST(
     typeof body.message === "string" && body.message.trim()
       ? body.message.trim().slice(0, 2000)
       : null;
+  // Automatic follow-ups on day 3 and 7 unless the sender turns them off.
+  const remind = body.remind !== false;
 
   const service = createServiceClient();
   const { data: proposal } = await service
@@ -57,6 +60,12 @@ export async function POST(
   if (proposal.status === "signed") {
     return NextResponse.json(
       { error: "This proposal is already signed" },
+      { status: 409 }
+    );
+  }
+  if (isExpired(proposal.expires_on)) {
+    return NextResponse.json(
+      { error: "This proposal has expired. Change its valid-until date first." },
       { status: 409 }
     );
   }
@@ -101,15 +110,21 @@ export async function POST(
     );
   }
 
+  // Each send restarts the follow-up clock.
+  const sentAt = new Date().toISOString();
+  const followup = { sent_at: sentAt, reminders_sent: 0, auto_remind: remind };
   let status = proposal.status;
-  if (status === "draft") {
-    const { error } = await service
-      .from("proposals")
-      .update({ status: "sent" })
-      .eq("id", proposal.id)
-      .eq("status", "draft");
-    if (!error) status = "sent";
-  }
+  const { error } = await service
+    .from("proposals")
+    .update(
+      // Sending a declined proposal again reopens it for signing.
+      status === "draft" || status === "declined"
+        ? { ...followup, status: "sent", declined_at: null, decline_reason: null }
+        : followup
+    )
+    .eq("id", proposal.id)
+    .neq("status", "signed");
+  if (!error && (status === "draft" || status === "declined")) status = "sent";
 
-  return NextResponse.json({ ok: true, status });
+  return NextResponse.json({ ok: true, status, ...followup });
 }
