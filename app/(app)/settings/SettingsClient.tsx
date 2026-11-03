@@ -201,7 +201,8 @@ export function SettingsClient({
         </CardContent>
       </Card>
 
-      <Card id="billing">
+      {/* Plans are chosen on the website, never in the Google Play app (lib/app-platform.ts). */}
+      <Card id="billing" data-hide-in-app>
         <CardHeader>
           <CardTitle className="text-lg">Plan and billing</CardTitle>
         </CardHeader>
@@ -253,6 +254,16 @@ export function SettingsClient({
           )}
         </CardContent>
       </Card>
+
+      <p className="text-center text-sm text-neutral-muted">
+        <a href="/privacy" className="hover:underline">
+          Privacy
+        </a>
+        {" · "}
+        <a href="/delete-account" className="text-red-600 hover:underline">
+          Delete my account
+        </a>
+      </p>
     </div>
   );
 }

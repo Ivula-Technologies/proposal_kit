@@ -182,6 +182,15 @@ export default function LandingPage() {
         </div>
         © {new Date().getFullYear()} ProposalKit. Built for freelancers and
         consultants.
+        <p className="mt-2">
+          <a href="/privacy" className="hover:underline">
+            Privacy
+          </a>
+          {" · "}
+          <a href="/delete-account" className="hover:underline">
+            Delete your account
+          </a>
+        </p>
       </footer>
     </div>
   );

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorker } from "@/components/shared/ServiceWorker";
+import { APP_PLATFORM_SCRIPT } from "@/lib/app-platform";
 
 const description =
   "Send a proposal your client can sign on their phone and pay the deposit in one link. Templates, e-signatures and Stripe deposits for US freelancers. 14-day free trial.";
@@ -38,7 +39,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // The script marks the Google Play app before the first paint, so the
+    // attribute it adds to <html> is expected to differ from the server's.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: APP_PLATFORM_SCRIPT }} />
+      </head>
       <body className="antialiased">
         {children}
         <Toaster />
