@@ -7,7 +7,7 @@ Suggested address: `https://proposalkit.ivulatechnologies.com`. Replace it every
 ## 1. Supabase (once)
 
 1. Create a Supabase project (US East is a good default).
-2. SQL editor: run all of `supabase/schema.sql`, then `supabase/seed.sql` (default templates). `schema.sql` is safe to re-run; run `seed.sql` only once or the templates appear twice.
+2. SQL editor: run all of `supabase/schema.sql`. It is safe to re-run. Proposal templates are built into the app, so there's no seed step.
 3. Storage: check there is a **private** bucket called `signatures` (`schema.sql` creates it).
 4. Auth > URL Configuration: **Site URL** `https://proposalkit.ivulatechnologies.com`, and add `https://proposalkit.ivulatechnologies.com/auth/callback` (plus `http://localhost:3000/auth/callback` for dev) to **Redirect URLs**.
 5. Auth > Providers > Google (optional, recommended): create an OAuth client in Google Cloud with the callback URL Supabase shows, paste the ID and secret into Supabase.
@@ -15,7 +15,7 @@ Suggested address: `https://proposalkit.ivulatechnologies.com`. Replace it every
 
 ## 2. Resend (once)
 
-Verify a sending domain (for example `ivulatechnologies.com`) and set `RESEND_FROM_EMAIL` to an address on it, e.g. `ProposalKit <proposals@ivulatechnologies.com>`. Without it, signing still works but no signed-copy emails go out.
+Verify a sending domain (for example `ivulatechnologies.com`) and set `RESEND_FROM_EMAIL` to an address on it, e.g. `ProposalKit <proposals@ivulatechnologies.com>`. Without it, signing still works, but no emails go out (the proposal itself, the opened/signed/deposit alerts and the signed copy) and the editor only offers **Copy link**.
 
 ## 3. Stripe (once, test mode first)
 
@@ -36,7 +36,7 @@ By hand instead: create the product and two monthly prices; add a webhook to `ht
 
 Until the price IDs are set, the plans show "Coming soon" and everyone stays on the 14-day free trial.
 
-`PLATFORM_FEE_BPS` (default 0) takes a cut of each client deposit, in basis points. The pricing page says "ProposalKit takes no cut of your deposits", so change that copy in `app/page.tsx` if you turn the fee on.
+Deposit fees: client deposits are destination charges, and Stripe bills the card fee on those to the platform (you), not the freelancer. So every deposit carries an application fee that recovers Stripe's US card fee, 2.9% + 30¢ by default. If your Stripe pricing is different, set `STRIPE_FEE_BPS` and `STRIPE_FEE_FIXED_CENTS`. International and Amex cards cost Stripe a little more, so a small difference stays with you. `PLATFORM_FEE_BPS` (default 0) adds a ProposalKit cut on top, in basis points. The pricing page says "ProposalKit takes no cut of your deposits", so change that copy in `app/page.tsx` if you turn it on.
 
 ## 4. Build the package
 
@@ -60,13 +60,13 @@ cp -a public cpanel-package/public
 2. **Setup Node.js App** > Create application: **Node.js 22** (the bundled Chromium needs 22.17+), mode Production, application root `proposalkit`, application URL `proposalkit.ivulatechnologies.com`, startup file `server.js`.
 3. Add every variable from `.env.example` under **Environment variables** (`NEXT_PUBLIC_APP_URL` must be the https address), then restart the app.
 4. Make sure SSL (AutoSSL) is active on the subdomain.
-5. **Trial reminders:** cPanel > **Cron Jobs**, once a day (e.g. 15:00 server time), add:
+5. **Daily emails:** cPanel > **Cron Jobs**, once a day (e.g. 15:00 server time), add:
 
    ```bash
-   curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" https://proposalkit.ivulatechnologies.com/api/cron/trial-reminders > /dev/null
+   curl -fsS -H "Authorization: Bearer YOUR_CRON_SECRET" https://proposalkit.ivulatechnologies.com/api/cron/daily > /dev/null
    ```
 
-   It emails people on the free trial 3 days before it ends and on the day it ends. Use the same value you set as `CRON_SECRET`.
+   It emails people on the free trial 3 days before it ends and on the day it ends, and sends clients who haven't signed a short follow-up from the freelancer 3 and 7 days after the proposal was emailed. Use the same value you set as `CRON_SECRET`. If you already added the older `/api/cron/trial-reminders` job, replace it with this one (keeping both would send trial emails twice).
 6. **Monitoring:** point UptimeRobot (free) at `https://proposalkit.ivulatechnologies.com/api/health`. It returns 200 when every setting is present and the database answers, otherwise 503 with the names of the missing settings.
 
 **PDFs on shared hosting.** Signed PDFs use a bundled headless Chromium that unpacks into `/tmp` on first use (about 60 MB) and needs roughly 512 MB of RAM while rendering. If your plan's limits block it, signing still works and the emails link to the signed proposal instead of attaching the PDF. A host-installed Chrome can be used instead by setting `PUPPETEER_EXECUTABLE_PATH`.
@@ -75,10 +75,11 @@ cp -a public cpanel-package/public
 
 1. Sign in at `/login` with a magic link; you land on the dashboard on the free trial.
 2. Settings > **Set up payouts with Stripe**: complete Express onboarding with Stripe's test data (SSN `000-00-0000`, routing `110000000`, account `000123456789`). Back in Settings it should say "Ready to take deposits".
-3. Create a proposal, set a **$1** deposit, add a client email, **Copy link**.
-4. Open the link in a private window, sign, and pay with `4242 4242 4242 4242`. Check: the dashboard shows Signed and Deposit paid; both inboxes get the signed copy; the payment shows under the connected account in Stripe.
+3. Create a proposal from a template, set a **$1** deposit, add a client email you can read, then **Send to client**. **Preview** shows a preview banner and won't let you sign your own proposal.
+4. Open the emailed link in a private window. You should get a "just opened" email. Sign and pay with `4242 4242 4242 4242`. Check: the dashboard shows Signed and Deposit paid; both inboxes get the signed copy; you get a "deposit received" email; the payment shows under the connected account in Stripe, with a 33¢ application fee (2.9% + 30¢) on the platform side.
 5. Settings > **Choose Solo**, pay with the test card; the page should show Solo within a few seconds.
-6. `curl -i https://proposalkit.ivulatechnologies.com/api/pdf?proposalId=00000000-0000-0000-0000-000000000000` returns **401**.
+6. Follow-ups: in Supabase SQL, run `update proposals set sent_at = now() - interval '3 days 1 hour' where id = '<a sent, unsigned proposal>';`, then run the daily cron command. The client gets "Following up: …" and the editor shows the next follow-up date. Set a past **Valid until** date and the client page says it expired and can't be signed. From the client link, **Request changes** and then **Decline** should each email you, and a declined proposal shows Declined on the dashboard until you Send again.
+7. `curl -i https://proposalkit.ivulatechnologies.com/api/pdf?proposalId=00000000-0000-0000-0000-000000000000` returns **401**.
 
 ## Going live
 

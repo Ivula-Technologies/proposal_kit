@@ -1,6 +1,6 @@
 export type Plan = "solo" | "pro";
 
-export type ProposalStatus = "draft" | "sent" | "viewed" | "signed";
+export type ProposalStatus = "draft" | "sent" | "viewed" | "signed" | "declined";
 
 export interface Profile {
   id: string;
@@ -33,6 +33,12 @@ export interface Proposal {
   deposit_paid: boolean;
   deposit_paid_at: string | null;
   deposit_payment_intent: string | null;
+  sent_at: string | null;
+  auto_remind: boolean;
+  reminders_sent: number;
+  expires_on: string | null; // YYYY-MM-DD, last day it can be signed
+  declined_at: string | null;
+  decline_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -49,16 +55,6 @@ export interface Signature {
 }
 
 export type TemplateCategory = "consulting" | "design" | "dev" | "marketing";
-
-export interface Template {
-  id: string;
-  user_id: string | null;
-  name: string;
-  category: TemplateCategory | null;
-  content: Record<string, unknown> | null;
-  is_default: boolean;
-  created_at: string;
-}
 
 export interface Database {
   public: {
@@ -80,11 +76,6 @@ export interface Database {
           signer_name: string;
         };
         Update: Partial<Signature>;
-      };
-      templates: {
-        Row: Template;
-        Insert: Partial<Template> & { name: string };
-        Update: Partial<Template>;
       };
     };
   };

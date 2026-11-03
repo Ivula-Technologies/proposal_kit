@@ -7,14 +7,13 @@ import { SettingsClient } from "./SettingsClient";
 
 export const dynamic = "force-dynamic";
 
-export default async function SettingsPage({
-  searchParams,
-}: {
-  searchParams: { payouts?: string; billing?: string };
+export default async function SettingsPage(props: {
+  searchParams: Promise<{ payouts?: string; billing?: string }>;
 }) {
+  const searchParams = await props.searchParams;
   const {
     data: { user },
-  } = await createClient().auth.getUser();
+  } = await (await createClient()).auth.getUser();
 
   const service = createServiceClient();
   let { profile, entitlement } = await loadEntitlement(service, user!.id);

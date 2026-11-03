@@ -14,7 +14,7 @@ freelancer's own Stripe Express account; ProposalKit takes no cut by default.
 
 ## Stack
 
-- Next.js 14 (App Router, TypeScript)
+- Next.js 15 (App Router, TypeScript, React 19)
 - Tailwind CSS + shadcn/ui
 - Supabase (Postgres + Auth + Storage)
 - TipTap rich text editor
@@ -33,8 +33,8 @@ freelancer's own Stripe Express account; ProposalKit takes no cut by default.
    ```
 
 2. **Create a Supabase project** and run `supabase/schema.sql` in the SQL
-   editor, followed by `supabase/seed.sql` for the default proposal
-   templates.
+   editor. The proposal templates are built into the app
+   (`lib/templates.ts`), so there's nothing to seed.
 
 3. **Copy the environment file** and fill in your keys:
 
@@ -54,12 +54,44 @@ freelancer's own Stripe Express account; ProposalKit takes no cut by default.
    The app boots at [http://localhost:3000](http://localhost:3000) with a
    working login page.
 
+5. **Before pushing**, run the same checks as CI:
+
+   ```bash
+   npm run lint && npx tsc --noEmit && npm test
+   ```
+
 ### PDF generation locally
 
 `/api/pdf` and `/api/sign` use Puppeteer to render the signed proposal PDF.
 On Linux servers it uses the bundled `@sparticuz/chromium` (Node 22.17+).
 On macOS/Windows, point `PUPPETEER_EXECUTABLE_PATH` in `.env.local` at a
 Chrome/Chromium binary on your machine.
+
+## Follow-ups and expiry
+
+When a proposal is emailed with **Send to client**, ProposalKit follows up
+with the client from the freelancer's name 3 and 7 days later if they
+haven't signed (the sender can turn this off in the Send dialog or from the
+editor). Each send restarts the clock. A proposal can also have a **Valid
+until** date; after that day the client page says it has expired and can't
+be signed. The schedule lives in `lib/followups.ts` and the daily job in
+`lib/cron/client-reminders.ts`, run by `/api/cron/daily`.
+
+Clients who aren't ready to sign can **Request changes** or **Decline**
+from the proposal page (`/api/proposals/[id]/respond`). The freelancer gets
+an email with the message (replies go to the client), follow-ups stop, and a
+declined proposal can't be signed until the freelancer uses **Send again**.
+
+## Phone app
+
+ProposalKit installs as a phone app straight from the browser (no app store).
+On Android or Chrome, open the site and tap **Install** on the banner. On an
+iPhone, open it in Safari, tap Share, then **Add to Home Screen**. It opens
+full screen on the dashboard and shows a friendly page when offline. The
+pieces are `app/manifest.ts`, `public/sw.js`, `public/offline.html`,
+`public/icons/` and `components/shared/InstallBanner.tsx`. The service worker
+only caches build files and icons, never pages or API responses. Installing
+needs HTTPS, which AutoSSL provides on cPanel.
 
 ## Project structure
 
@@ -76,7 +108,7 @@ app/
     settings/              Business name, payouts (Connect), plan and billing
   upgrade/                Redirects to Settings > billing
   api/
-    proposals/             CRUD for proposals
+    proposals/             CRUD, duplicate, and Send to client (email)
     sign/                   Handles signature submit + status update
     pdf/                    Puppeteer: render proposal to PDF
     checkout/               Deposit checkout, paid to the freelancer's Connect account
@@ -88,9 +120,10 @@ components/
   shared/                 ProposalCard, Editor, SignaturePad, StatusBadge, Navbar, Sidebar
 lib/
   supabase/               Browser, server, and middleware Supabase clients
-  resend.ts                Signed-proposal email helper
+  resend.ts                Proposal, signed-copy and owner alert emails
+  templates.ts             Built-in proposal templates
   pdf.ts                    Puppeteer PDF renderer
-  stripe.ts                 Stripe client + optional platform fee
+  stripe.ts                 Stripe client + deposit application fee
   billing.ts                Plans, free trial and entitlement checks
   connect.ts                Syncs Connect account status
   rate-limit.ts, validate.ts  Public-route guards
@@ -98,7 +131,6 @@ types/
   index.ts                Shared TypeScript types + Supabase Database type
 supabase/
   schema.sql               Tables, RLS policies, storage bucket (safe to re-run)
-  seed.sql                  Default proposal templates
 ```
 
 ## Deploying

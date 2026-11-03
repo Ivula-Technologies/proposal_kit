@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { renderProposalToPdf } from "@/lib/pdf";
 import { sendSignedProposalEmail } from "@/lib/resend";
 import { appUrl, loadEntitlement } from "@/lib/billing";
+import { isExpired } from "@/lib/followups";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { isEmail, isUuid } from "@/lib/validate";
 
@@ -62,6 +63,24 @@ export async function POST(request: Request) {
 
   const supabase = createServiceClient();
 
+  const { data: current } = await supabase
+    .from("proposals")
+    .select("expires_on, status")
+    .eq("id", proposalId)
+    .maybeSingle();
+  if (current?.status === "declined") {
+    return NextResponse.json(
+      { error: "This proposal was declined. Ask for an updated one." },
+      { status: 409 }
+    );
+  }
+  if (current && isExpired(current.expires_on)) {
+    return NextResponse.json(
+      { error: "This proposal has expired. Ask for an updated one." },
+      { status: 410 }
+    );
+  }
+
   // Claim the proposal atomically so it can only be signed once, even if
   // the client double-clicks or two people open the link.
   const signedAt = new Date().toISOString();
@@ -69,7 +88,7 @@ export async function POST(request: Request) {
     .from("proposals")
     .update({ status: "signed", signed_at: signedAt })
     .eq("id", proposalId)
-    .neq("status", "signed")
+    .in("status", ["draft", "sent", "viewed"])
     .select("*")
     .maybeSingle();
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { loadEntitlement, UPGRADE_REQUIRED } from "@/lib/billing";
+import { parseExpiry } from "@/lib/followups";
 import {
   isEmail,
   isUuid,
@@ -54,6 +55,15 @@ function parseUpdates(body: Record<string, unknown>): Updates | string {
       return "Deposit must be between $0.50 and $100,000";
     }
   }
+  if ("expires_on" in body) {
+    const value = parseExpiry(body.expires_on);
+    if (value === undefined) return "Enter a valid date";
+    updates.expires_on = value;
+  }
+  if ("auto_remind" in body) {
+    if (typeof body.auto_remind !== "boolean") return "Invalid auto_remind";
+    updates.auto_remind = body.auto_remind;
+  }
   if ("status" in body) {
     // Owners can only mark a draft as sent; viewed/signed are set by the
     // public page and the signing route.
@@ -65,9 +75,10 @@ function parseUpdates(body: Record<string, unknown>): Updates | string {
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -136,7 +147,8 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Proposal query failed", error);
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
   if (!data) {
     return NextResponse.json(
@@ -150,9 +162,10 @@ export async function PATCH(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createClient();
+  const params = await props.params;
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -161,14 +174,28 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { error } = await supabase
+  if (!isUuid(params.id)) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  // Signed proposals are the record of an agreement, so they stay.
+  const { data, error } = await supabase
     .from("proposals")
     .delete()
     .eq("id", params.id)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .neq("status", "signed")
+    .select("id");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("Proposal query failed", error);
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
+  }
+  if (!data?.length) {
+    return NextResponse.json(
+      { error: "Signed proposals can't be deleted" },
+      { status: 409 }
+    );
   }
 
   return NextResponse.json({ ok: true });
