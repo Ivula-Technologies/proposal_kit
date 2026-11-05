@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Plus, Settings } from "lucide-react";
+import { CalendarClock, LayoutDashboard, Plus, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { BOOKING_URL } from "@/lib/booking";
 import { NewProposalButton } from "@/components/shared/NewProposalButton";
 
 const NAV_ITEMS = [
@@ -37,6 +38,17 @@ export function Sidebar() {
             </Link>
           ))}
         </nav>
+        <div className="mt-auto p-3">
+          <a
+            href={BOOKING_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-neutral-muted hover:bg-brand-light hover:text-brand-navy"
+          >
+            <CalendarClock className="h-4 w-4" />
+            Book a help call
+          </a>
+        </div>
       </aside>
 
       {/* Mobile bottom nav */}
