@@ -95,6 +95,8 @@ alter table proposals add column if not exists expires_on       date;         --
 -- Client turned it down from the proposal page
 alter table proposals add column if not exists declined_at      timestamptz;
 alter table proposals add column if not exists decline_reason   text;
+-- Grand total of the pricing tables as signed (optional add-ons the client chose included)
+alter table proposals add column if not exists accepted_total   integer;   -- cents
 
 do $$
 begin
@@ -154,7 +156,7 @@ create table if not exists templates (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid references auth.users(id) on delete cascade,
   name           text not null,
-  category       text,     -- 'consulting','design','dev','marketing'
+  category       text,     -- 'consulting','design','dev','marketing','contract'
   content        jsonb,
   is_default     boolean default false,
   created_at     timestamptz default now()

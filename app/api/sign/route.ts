@@ -5,7 +5,9 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { renderProposalToPdf } from "@/lib/pdf";
 import { sendSignedProposalEmail } from "@/lib/resend";
 import { appUrl, loadEntitlement } from "@/lib/billing";
+import { contentVersion } from "@/lib/content-version";
 import { isExpired } from "@/lib/followups";
+import { applySelection } from "@/lib/pricing";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { isEmail, isUuid } from "@/lib/validate";
 
@@ -21,6 +23,10 @@ interface SignRequestBody {
   signerName: string;
   signerEmail?: string;
   signatureDataUrl: string;
+  /** Optional pricing-table add-ons the client ticked. */
+  selectedItems?: string[];
+  /** contentVersion() of the document the client was shown. */
+  version?: string;
 }
 
 export async function POST(request: Request) {
@@ -65,7 +71,7 @@ export async function POST(request: Request) {
 
   const { data: current } = await supabase
     .from("proposals")
-    .select("expires_on, status")
+    .select("expires_on, status, content")
     .eq("id", proposalId)
     .maybeSingle();
   if (current?.status === "declined") {
@@ -81,12 +87,30 @@ export async function POST(request: Request) {
     );
   }
 
+  if (current && typeof body.version === "string" && body.version !== contentVersion(current.content)) {
+    return NextResponse.json(
+      { error: "The sender updated this proposal after you opened it. Reload the page to see the latest version before signing." },
+      { status: 409 }
+    );
+  }
+
+  // Record exactly which optional add-ons were chosen, inside the signed
+  // document, and the grand total of its pricing tables.
+  const selectedItems = Array.isArray(body.selectedItems)
+    ? body.selectedItems.filter((id): id is string => typeof id === "string").slice(0, 200)
+    : [];
+  const priced = current?.content
+    ? applySelection(current.content, selectedItems)
+    : { content: null, total: null };
+  const pricingUpdate =
+    priced.total !== null ? { content: priced.content, accepted_total: priced.total } : {};
+
   // Claim the proposal atomically so it can only be signed once, even if
   // the client double-clicks or two people open the link.
   const signedAt = new Date().toISOString();
   const { data: proposal } = await supabase
     .from("proposals")
-    .update({ status: "signed", signed_at: signedAt })
+    .update({ status: "signed", signed_at: signedAt, ...pricingUpdate })
     .eq("id", proposalId)
     .in("status", ["draft", "sent", "viewed"])
     .select("*")
@@ -130,7 +154,11 @@ export async function POST(request: Request) {
     // Release the claim so the client can retry.
     await supabase
       .from("proposals")
-      .update({ status: proposal.viewed_at ? "viewed" : "sent", signed_at: null })
+      .update({
+        status: proposal.viewed_at ? "viewed" : "sent",
+        signed_at: null,
+        ...(priced.total !== null ? { content: current!.content, accepted_total: null } : {}),
+      })
       .eq("id", proposalId);
     if (!uploadError) {
       await supabase.storage.from("signatures").remove([storagePath]);
@@ -175,6 +203,7 @@ export async function POST(request: Request) {
           proposalUrl,
           businessName: branding.businessName,
           replyTo: profile?.email,
+          acceptedTotal: proposal.accepted_total,
         })
       );
     }
@@ -188,6 +217,7 @@ export async function POST(request: Request) {
           proposalUrl,
           businessName: branding.businessName,
           replyTo: signerEmail,
+          acceptedTotal: proposal.accepted_total,
         })
       );
     }

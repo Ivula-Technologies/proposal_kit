@@ -3,6 +3,8 @@
 import { generateHTML } from "@tiptap/html/server";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+
+import { PricingTable } from "@/lib/tiptap/pricing-table";
 import type { JSONContent } from "@tiptap/core";
 
 import type { Proposal, Signature } from "@/types";
@@ -54,7 +56,7 @@ function buildProposalHtml({
   branding: PdfBranding;
 }) {
   const contentHtml = proposal.content
-    ? generateHTML(proposal.content as JSONContent, [StarterKit, Image])
+    ? generateHTML(proposal.content as JSONContent, [StarterKit, Image, PricingTable])
     : "<p></p>";
 
   const signedDate = signature
@@ -92,6 +94,15 @@ function buildProposalHtml({
   .meta { color: #8A95A5; font-size: 13px; margin-bottom: 24px; }
   .content h1, .content h2 { color: #0F1A3E; }
   .content { font-size: 14px; line-height: 1.7; }
+  .pricing-table { margin: 20px 0; }
+  .pricing-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .pricing-table th { text-align: left; color: #8A95A5; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid #E2E6EC; padding: 6px 8px; }
+  .pricing-table td { border-bottom: 1px solid #E2E6EC; padding: 8px; vertical-align: top; }
+  .pricing-table .pt-num { text-align: right; white-space: nowrap; }
+  .pricing-table .pt-name { font-weight: 600; color: #0F1A3E; }
+  .pricing-table .pt-desc, .pricing-table .pt-tag { color: #8A95A5; font-size: 12px; }
+  .pricing-table .pt-excluded td { color: #8A95A5; }
+  .pricing-table tfoot td { font-weight: 700; color: #0F1A3E; border-bottom: 2px solid #0F1A3E; }
   .signature-block {
     margin-top: 48px;
     padding-top: 24px;

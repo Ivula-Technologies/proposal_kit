@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatDay, isExpired, nextReminderAt } from "@/lib/followups";
+import { pricingTablesIn } from "@/lib/pricing";
 import { isEmail } from "@/lib/validate";
 import type { Proposal } from "@/types";
 
@@ -55,6 +56,12 @@ function placeholdersIn(content: JSONContent | null) {
     node.content?.forEach(walk);
   };
   if (content) walk(content);
+  // A pricing line still at $0 is almost always a price not filled in yet.
+  for (const items of pricingTablesIn(content)) {
+    for (const item of items) {
+      if (item.unitPrice === 0) found.add(`a $0 price on "${item.name || "a line"}"`);
+    }
+  }
   return Array.from(found);
 }
 
@@ -63,7 +70,7 @@ function confirmNoPlaceholders(content: JSONContent | null) {
   if (left.length === 0) return true;
   const sample = left.slice(0, 3).join(", ");
   return window.confirm(
-    `This proposal still has ${left.length} placeholder${left.length === 1 ? "" : "s"} in brackets, like ${sample}. Your client will see them. Continue anyway?`
+    `This proposal still has ${left.length} thing${left.length === 1 ? "" : "s"} to fill in, like ${sample}. Your client will see ${left.length === 1 ? "it" : "them"}. Continue anyway?`
   );
 }
 

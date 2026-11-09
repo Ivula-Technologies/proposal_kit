@@ -3,13 +3,17 @@ import { format } from "date-fns";
 
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { isExpired } from "@/lib/followups";
+import { money } from "@/lib/pricing";
 import { formatUsd } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Proposal } from "@/types";
 
 function activity(proposal: Proposal) {
   const at = (iso: string) => format(new Date(iso), "MMM d");
-  if (proposal.signed_at) return `Signed ${at(proposal.signed_at)}`;
+  if (proposal.signed_at) {
+    const total = typeof proposal.accepted_total === "number" ? ` · ${money(proposal.accepted_total)}` : "";
+    return `Signed ${at(proposal.signed_at)}${total}`;
+  }
   if (proposal.declined_at) return `Declined ${at(proposal.declined_at)}`;
   if (isExpired(proposal.expires_on)) return "Expired";
   if (proposal.viewed_at) return `Opened ${at(proposal.viewed_at)}`;
