@@ -39,6 +39,7 @@ export interface Proposal {
   expires_on: string | null; // YYYY-MM-DD, last day it can be signed
   declined_at: string | null;
   decline_reason: string | null;
+  accepted_total: number | null; // cents, set at signing when the proposal has pricing tables
   created_at: string;
   updated_at: string;
 }

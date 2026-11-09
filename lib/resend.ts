@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 
+import { money } from "@/lib/pricing";
 import { escapeHtml } from "@/lib/validate";
 
 let resendClient: Resend | null = null;
@@ -50,6 +51,8 @@ interface SendSignedProposalEmailArgs {
   proposalUrl: string;
   businessName: string | null;
   replyTo?: string | null;
+  /** Pricing-table total as signed, in cents. */
+  acceptedTotal?: number | null;
 }
 
 export async function sendSignedProposalEmail({
@@ -60,6 +63,7 @@ export async function sendSignedProposalEmail({
   proposalUrl,
   businessName,
   replyTo,
+  acceptedTotal,
 }: SendSignedProposalEmailArgs) {
   const from = process.env.RESEND_FROM_EMAIL;
   if (!process.env.RESEND_API_KEY || !from) {
@@ -76,6 +80,10 @@ export async function sendSignedProposalEmail({
       ? `<p style="color:#1A1F2E; line-height:1.6;">Thanks for signing <strong>${title}</strong>. ${copyLine}</p>`
       : `<p style="color:#1A1F2E; line-height:1.6;"><strong>${title}</strong> was just signed by your client. ${copyLine}</p>`;
 
+  const totalLine =
+    typeof acceptedTotal === "number"
+      ? paragraph(`Total agreed: <strong>${escapeHtml(money(acceptedTotal))}</strong>, including any optional add-ons chosen.`)
+      : "";
   const brand = businessName || "ProposalKit";
   // Show the freelancer's business as the sender name on client emails.
   const fromHeader =
@@ -86,7 +94,7 @@ export async function sendSignedProposalEmail({
     to,
     replyTo: replyTo ?? undefined,
     subject: `${proposalTitle} — Signed copy`,
-    html: emailShell(brand, "Your proposal has been signed", body),
+    html: emailShell(brand, "Your proposal has been signed", body + totalLine),
     attachments: pdfBuffer
       ? [
           {

@@ -10,10 +10,12 @@ import {
   Heading2,
   List,
   ListOrdered,
+  Table2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PricingTableExtension } from "@/components/shared/PricingTableView";
 
 function ToolbarButton({
   onClick,
@@ -53,7 +55,7 @@ export function Editor({
   editable?: boolean;
 }) {
   const editor = useEditor({
-    extensions: [StarterKit, Image],
+    extensions: [StarterKit, Image, PricingTableExtension],
     content: content ?? "",
     editable,
     immediatelyRender: false,
@@ -122,6 +124,17 @@ export function Editor({
           >
             <ListOrdered className="h-4 w-4" />
           </ToolbarButton>
+          <div className="mx-1 h-5 w-px bg-neutral-border" />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => editor.chain().focus().insertPricingTable().run()}
+            className="h-8 gap-1.5 px-2 text-xs font-medium"
+          >
+            <Table2 className="h-4 w-4" />
+            Pricing table
+          </Button>
         </div>
       )}
       <EditorContent editor={editor} className="flex-1" />

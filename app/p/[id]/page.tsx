@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { appUrl, loadEntitlement } from "@/lib/billing";
+import { contentVersion } from "@/lib/content-version";
 import { formatDay, isExpired } from "@/lib/followups";
 import { sendOwnerNotice } from "@/lib/resend";
 import { isUuid } from "@/lib/validate";
@@ -95,6 +96,7 @@ export default async function PublicProposalPage(props: {
         deposit_paid: proposal.deposit_paid,
       }}
       declined={proposal.status === "declined"}
+      version={contentVersion(proposal.content)}
       businessName={profile?.business_name ?? null}
       showBranding={entitlement.showBranding}
       depositsEnabled={!!profile?.charges_enabled}

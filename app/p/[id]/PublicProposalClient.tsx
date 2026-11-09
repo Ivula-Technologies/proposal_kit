@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, CheckCircle2, Eye, Loader2, Lock, Mail, MessageSquare, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { JSONContent } from "@tiptap/react";
 
 import { Editor } from "@/components/shared/Editor";
+import { PricingSelectionContext } from "@/components/shared/PricingTableView";
+import { defaultSelection } from "@/lib/pricing";
 import { SignaturePad } from "@/components/shared/SignaturePad";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +48,7 @@ export function PublicProposalClient({
   validUntil = null,
   expired = false,
   declined: initiallyDeclined = false,
+  version,
 }: {
   proposal: PublicProposal;
   businessName: string | null;
@@ -58,6 +61,7 @@ export function PublicProposalClient({
   validUntil?: string | null;
   expired?: boolean;
   declined?: boolean;
+  version?: string;
 }) {
   const [signed, setSigned] = useState(proposal.status === "signed");
   const [payingDeposit, setPayingDeposit] = useState(false);
@@ -79,9 +83,30 @@ export function PublicProposalClient({
   const [respondMessage, setRespondMessage] = useState("");
   const [responding, setResponding] = useState(false);
   const sender = businessName ?? "the sender";
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(() =>
+    defaultSelection(proposal.content as JSONContent | null)
+  );
 
   const depositOnSign =
     depositsEnabled && !!proposal.deposit_amount && proposal.deposit_amount > 0;
+
+  const choicesLocked = signed || declined || expired;
+  const pricingSelection = useMemo(
+    () => ({
+      // A signed document records what was chosen, which is where the
+      // initial selection comes from.
+      selected: selectedItems,
+      locked: choicesLocked,
+      toggle: (id: string) =>
+        setSelectedItems((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        }),
+    }),
+    [choicesLocked, selectedItems]
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -110,6 +135,8 @@ export function PublicProposalClient({
           signerName,
           signerEmail,
           signatureDataUrl,
+          selectedItems: Array.from(selectedItems),
+          version,
         }),
       });
 
@@ -224,10 +251,12 @@ export function PublicProposalClient({
             )}
           </div>
 
-          <Editor
-            content={proposal.content as JSONContent | null}
-            editable={false}
-          />
+          <PricingSelectionContext.Provider value={pricingSelection}>
+            <Editor
+              content={proposal.content as JSONContent | null}
+              editable={false}
+            />
+          </PricingSelectionContext.Provider>
 
           <div className="border-t border-neutral-border px-4 py-8 sm:px-8">
             {signed ? (
