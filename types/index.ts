@@ -55,7 +55,7 @@ export interface Signature {
   signed_at: string;
 }
 
-export type TemplateCategory = "consulting" | "design" | "dev" | "marketing";
+export type TemplateCategory = "consulting" | "design" | "dev" | "marketing" | "contract";
 
 export interface Database {
   public: {

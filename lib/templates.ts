@@ -43,6 +43,25 @@ const list = (items: (string | [string, string])[]): JSONContent => ({
 
 const doc = (...content: JSONContent[]): JSONContent => ({ type: "doc", content });
 
+// A pricing table block. Prices start at $0 so nothing goes out with a
+// made-up number: the editor warns before sending while any line is $0.
+const pricing = (
+  ...items: [id: string, name: string, description: string, optional?: boolean][]
+): JSONContent => ({
+  type: "pricingTable",
+  attrs: {
+    items: items.map(([id, name, description, optional = false]) => ({
+      id,
+      name,
+      description,
+      quantity: 1,
+      unitPrice: 0,
+      optional,
+      selected: !optional,
+    })),
+  },
+});
+
 const NEXT_STEPS = [
   h2("Next steps"),
   p(
@@ -84,8 +103,11 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
         "Email and Slack support for the length of the engagement",
       ]),
       h2("Investment"),
+      pricing(
+        ["fee", "Consulting engagement", "Discovery, recommendations and 3 weeks of rollout support, fixed fee"],
+        ["extra", "Extra month of rollout support", "Weekly working sessions for 4 more weeks", true]
+      ),
       list([
-        ["Project fee", "$[amount], fixed"],
         ["Deposit", "50% on signing, so we can book the start date"],
         ["Balance", "50% when the action plan is delivered"],
       ]),
@@ -118,8 +140,11 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
         ["Week 4", "Final revisions and handoff"],
       ]),
       h2("Investment"),
+      pricing(
+        ["fee", "Design project", "Research, two directions, final design and handoff"],
+        ["round", "Extra revision round", "One more round of changes after the final review", true]
+      ),
       list([
-        ["Project fee", "$[amount]"],
         ["Deposit", "50% on signing"],
         ["Balance", "50% at handoff"],
       ]),
@@ -152,11 +177,13 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
         ["Milestone 3", "Launch and 30 days of bug fixes ([date])"],
       ]),
       h2("Investment"),
+      pricing(
+        ["build", "Build and launch", "Everything in the scope above, through launch and 30 days of fixes"],
+        ["care", "Care plan, first 3 months", "Updates, backups and small changes after launch", true]
+      ),
       list([
-        ["Project fee", "$[amount]"],
         ["Deposit", "40% on signing"],
         ["Then", "30% at milestone 2 and 30% at launch"],
-        ["Optional care plan", "$[amount]/month for updates, backups and small changes"],
       ]),
       ...TERMS("40% deposit to book the project, then 30% at each of the next two milestones."),
       ...NEXT_STEPS
@@ -181,8 +208,11 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
         "A monthly report and a 30-minute review call",
       ]),
       h2("Investment"),
+      pricing(
+        ["retainer", "Monthly retainer", "Everything listed above, billed on the 1st of each month"],
+        ["ads", "Paid ads management", "Set up and run campaigns each month (ad spend billed separately)", true]
+      ),
       list([
-        ["Monthly retainer", "$[amount]/month, billed on the 1st"],
         ["First month", "Paid on signing as the deposit"],
         ["Commitment", "3 months to start, then month to month with 30 days' notice"],
       ]),
@@ -195,6 +225,73 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
         ["Cancellation", "After the first 3 months, either side can cancel with 30 days' written notice."],
       ]),
       ...NEXT_STEPS
+    ),
+  },
+  {
+    key: "service-agreement",
+    name: "Service agreement",
+    category: "contract",
+    description: "A plain-English contract for any freelance project, signed online",
+    content: doc(
+      p("This agreement is between [Your business name] (\"I\", \"me\") and [Client company] (\"you\"). It covers the work described below and starts on the date you sign."),
+      h2("1. The work"),
+      p("I will provide: [describe the services and deliverables, in plain language]."),
+      p("Anything not listed here is outside this agreement. New work is quoted in writing before it starts."),
+      h2("2. Fees and payment"),
+      pricing(["fee", "Services", "The work described in section 1"]),
+      list([
+        ["Deposit", "[50]% is due on signing. Work starts once it is paid."],
+        ["Balance", "Invoiced on delivery and due within 14 days."],
+        ["Late payment", "If an invoice is more than 14 days late, I can pause work until it is paid."],
+        ["Expenses", "Pre-approved expenses (stock assets, software, travel) are billed at cost."],
+      ]),
+      h2("3. Timeline and feedback"),
+      p("We aim to finish by [date]. You agree to send feedback and materials within [2] business days of a request. Delays on either side move the dates by the same amount."),
+      h2("4. Changes"),
+      p("[Two] rounds of revisions are included. Extra rounds or changes to the scope are quoted in writing, and the dates and fees change only if you agree."),
+      h2("5. Ownership"),
+      p("Once you have paid in full, you own the final deliverables. I keep ownership of my tools, templates, code libraries and know-how, and give you a permanent licence to use any of them that are part of the deliverables. I may show the finished work in my portfolio unless you ask me not to in writing."),
+      h2("6. Confidentiality"),
+      p("Each of us will keep the other's non-public information private and use it only for this project. This does not cover information that is already public or that the law requires us to share."),
+      h2("7. Independent contractor"),
+      p("I work as an independent contractor, not an employee. I am responsible for my own taxes, insurance and equipment."),
+      h2("8. Warranties and liability"),
+      p("I will do the work in a professional way. Neither of us is liable for indirect or consequential losses, and my total liability under this agreement is limited to the fees you paid me under it."),
+      h2("9. Ending this agreement"),
+      p("Either of us can end this agreement with [14] days' written notice. You pay for work completed up to that date, and the deposit is non-refundable. Sections 5, 6 and 8 continue after it ends."),
+      h2("10. General"),
+      p("This agreement is governed by the laws of [State]. It is the whole agreement between us, and changes must be in writing. Signing online has the same effect as signing on paper."),
+      p(text("Before you rely on this template, have a lawyer in your state review it. It is a starting point, not legal advice.", true))
+    ),
+  },
+  {
+    key: "nda",
+    name: "Mutual NDA",
+    category: "contract",
+    description: "A short two-way non-disclosure agreement to sign before a project",
+    content: doc(
+      p("This mutual non-disclosure agreement is between [Your business name] and [Client company]. Each of us may share confidential information with the other while we discuss [purpose, e.g. a possible website project]."),
+      h2("1. What counts as confidential"),
+      p("Any non-public business, technical or financial information one of us shares with the other, in writing or out loud, that a reasonable person would understand to be confidential."),
+      h2("2. What it does not cover"),
+      list([
+        "Information that is public, or becomes public through no fault of the person who received it",
+        "Information the receiver already knew or developed on their own",
+        "Information the receiver got lawfully from someone else",
+        "Information the law or a court requires the receiver to share, after telling the other side where allowed",
+      ]),
+      h2("3. What each of us agrees to"),
+      list([
+        "Use the other's information only for the purpose above",
+        "Share it only with people who need it for that purpose and who are bound to keep it private",
+        "Protect it with at least the same care we use for our own confidential information",
+        "Return or delete it when asked",
+      ]),
+      h2("4. How long it lasts"),
+      p("This agreement starts on the date it is signed. The duty to keep information confidential lasts for [2] years after the last disclosure, and for trade secrets, for as long as they stay trade secrets."),
+      h2("5. General"),
+      p("Nothing here obliges either of us to share information or to work together. This agreement is governed by the laws of [State]. Signing online has the same effect as signing on paper."),
+      p(text("Before you rely on this template, have a lawyer in your state review it. It is a starting point, not legal advice.", true))
     ),
   },
 ];

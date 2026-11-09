@@ -156,7 +156,7 @@ create table if not exists templates (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid references auth.users(id) on delete cascade,
   name           text not null,
-  category       text,     -- 'consulting','design','dev','marketing'
+  category       text,     -- 'consulting','design','dev','marketing','contract'
   content        jsonb,
   is_default     boolean default false,
   created_at     timestamptz default now()

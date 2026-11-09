@@ -67,7 +67,7 @@ export function NewProposalButton({
           <DialogHeader>
             <DialogTitle>Start a new proposal</DialogTitle>
             <DialogDescription>
-              Each template has a full scope, pricing and terms you can edit. Replace anything in [brackets].
+              Proposals come with scope, a pricing table and terms; contracts are ready to sign. Replace anything in [brackets] and set your prices.
             </DialogDescription>
           </DialogHeader>
 
