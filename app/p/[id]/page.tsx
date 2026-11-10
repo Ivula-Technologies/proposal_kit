@@ -93,6 +93,7 @@ export default async function PublicProposalPage(props: {
         content: proposal.content,
         status: proposal.status,
         deposit_amount: proposal.deposit_amount,
+        deposit_percent: proposal.deposit_percent,
         deposit_paid: proposal.deposit_paid,
       }}
       declined={proposal.status === "declined"}

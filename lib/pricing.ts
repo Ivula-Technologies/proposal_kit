@@ -1,6 +1,7 @@
 import type { JSONContent } from "@tiptap/core";
 
 import { formatUsd } from "@/lib/format";
+import { MAX_DEPOSIT_CENTS, MIN_DEPOSIT_CENTS } from "@/lib/validate";
 
 // Pricing tables live inside the proposal's TipTap document as
 // "pricingTable" nodes whose items are an attribute. These helpers are
@@ -132,4 +133,32 @@ export function applySelection(content: JSONContent, selectedIds: Iterable<strin
 /** "$2,500" for whole dollars, "$62.50" otherwise. */
 export function money(cents: number) {
   return formatUsd(cents, { whole: cents % 100 === 0 });
+}
+
+/** Grand total across every pricing table, for a given choice of add-ons. */
+export function documentTotal(
+  content: JSONContent | null | undefined,
+  selected?: ReadonlySet<string>
+) {
+  const tables = pricingTablesIn(content);
+  if (tables.length === 0) return null;
+  return tables.reduce((sum, items) => sum + tableTotal(items, selected), 0);
+}
+
+/** Whole percent from 1 to 100, or null when it isn't one. */
+export function parseDepositPercent(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 100
+    ? value
+    : null;
+}
+
+/**
+ * A percentage deposit in cents, or null when there's nothing to charge
+ * (no pricing table, or less than Stripe's minimum). Capped at the largest
+ * deposit a proposal can ask for.
+ */
+export function depositFromPercent(total: number | null, percent: number | null) {
+  if (total === null || percent === null) return null;
+  const cents = Math.min(Math.round((total * percent) / 100), MAX_DEPOSIT_CENTS);
+  return cents >= MIN_DEPOSIT_CENTS ? cents : null;
 }

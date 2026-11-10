@@ -88,7 +88,9 @@ export async function POST(
     profile?.business_name || profile?.full_name || user.email || "Your consultant";
   const depositLabel =
     proposal.deposit_amount && profile?.charges_enabled
-      ? formatUsd(proposal.deposit_amount)
+      ? proposal.deposit_percent
+        ? `${proposal.deposit_percent}%`
+        : formatUsd(proposal.deposit_amount)
       : null;
 
   try {

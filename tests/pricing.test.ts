@@ -2,7 +2,16 @@ import { describe, expect, it } from "vitest";
 import { generateHTML } from "@tiptap/html/server";
 import StarterKit from "@tiptap/starter-kit";
 
-import { applySelection, defaultSelection, money, sanitizeItems, tableTotal } from "@/lib/pricing";
+import {
+  applySelection,
+  defaultSelection,
+  depositFromPercent,
+  documentTotal,
+  money,
+  parseDepositPercent,
+  sanitizeItems,
+  tableTotal,
+} from "@/lib/pricing";
 import { PricingTable } from "@/lib/tiptap/pricing-table";
 
 const items = [
@@ -61,5 +70,43 @@ describe("pricing", () => {
   it("formats whole and partial dollars", () => {
     expect(money(250000)).toBe("$2,500");
     expect(money(6250)).toBe("$62.50");
+  });
+});
+
+describe("percentage deposits", () => {
+  const doc = {
+    type: "doc",
+    content: [
+      {
+        type: "pricingTable",
+        attrs: {
+          items: [
+            { id: "a", name: "Build", quantity: 1, unitPrice: 400000 },
+            { id: "b", name: "Care", quantity: 1, unitPrice: 100000, optional: true, selected: false },
+          ],
+        },
+      },
+    ],
+  };
+
+  it("follows the add-ons the client picks", () => {
+    expect(documentTotal(doc, new Set())).toBe(400000);
+    expect(documentTotal(doc, new Set(["b"]))).toBe(500000);
+    expect(depositFromPercent(documentTotal(doc, new Set(["b"])), 30)).toBe(150000);
+  });
+
+  it("has no deposit without a pricing table or below Stripe's minimum", () => {
+    expect(documentTotal({ type: "doc", content: [] })).toBeNull();
+    expect(depositFromPercent(null, 50)).toBeNull();
+    expect(depositFromPercent(40, 50)).toBeNull();
+    expect(depositFromPercent(100000, null)).toBeNull();
+  });
+
+  it("accepts only whole percents from 1 to 100", () => {
+    expect(parseDepositPercent(25)).toBe(25);
+    expect(parseDepositPercent(0)).toBeNull();
+    expect(parseDepositPercent(101)).toBeNull();
+    expect(parseDepositPercent(12.5)).toBeNull();
+    expect(parseDepositPercent("50")).toBeNull();
   });
 });

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { loadEntitlement, UPGRADE_REQUIRED } from "@/lib/billing";
 import { parseExpiry } from "@/lib/followups";
+import { defaultSelection, depositFromPercent, documentTotal, parseDepositPercent } from "@/lib/pricing";
 import {
   isEmail,
   isUuid,
@@ -39,6 +40,16 @@ function parseUpdates(body: Record<string, unknown>): Updates | string {
       return "Invalid content";
     }
     updates.content = body.content;
+  }
+  if ("deposit_percent" in body) {
+    const value = body.deposit_percent;
+    if (value === null || value === 0) {
+      updates.deposit_percent = null;
+    } else {
+      const percent = parseDepositPercent(value);
+      if (percent === null) return "Deposit percent must be a whole number from 1 to 100";
+      updates.deposit_percent = percent;
+    }
   }
   if ("deposit_amount" in body) {
     const value = body.deposit_amount;
@@ -102,7 +113,7 @@ export async function PATCH(
   const service = createServiceClient();
   const { data: existing } = await service
     .from("proposals")
-    .select("id, status")
+    .select("id, status, content, deposit_percent")
     .eq("id", params.id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -124,7 +135,22 @@ export async function PATCH(
       { status: 403 }
     );
   }
-  if (updates.deposit_amount && !profile?.charges_enabled) {
+  // A percentage deposit sets deposit_amount from the total with the default
+  // add-ons, so emails and the dashboard show a figure. Signing fixes it from
+  // the client's actual choices.
+  const percent =
+    "deposit_percent" in updates
+      ? (updates.deposit_percent as number | null)
+      : existing.deposit_percent;
+  if (percent !== null && ("deposit_percent" in updates || "content" in updates)) {
+    const content = "content" in updates ? updates.content : existing.content;
+    const json = content as Parameters<typeof documentTotal>[0];
+    updates.deposit_amount = depositFromPercent(
+      documentTotal(json, defaultSelection(json)),
+      percent
+    );
+  }
+  if ((updates.deposit_amount || updates.deposit_percent) && !profile?.charges_enabled) {
     return NextResponse.json(
       { error: "Set up payouts in Settings before asking for a deposit" },
       { status: 400 }
