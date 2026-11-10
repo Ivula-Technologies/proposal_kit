@@ -1,8 +1,4 @@
-import { generateHTML } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
-import Image from "@tiptap/extension-image";
-import type { JSONContent } from "@tiptap/core";
-
+import { renderProposalContentHtml } from "@/lib/tiptap";
 import type { Proposal, Signature } from "@/types";
 
 async function getBrowser() {
@@ -36,9 +32,7 @@ function buildProposalHtml({
   signature: Signature | null;
   signatureImageUrl: string | null;
 }) {
-  const contentHtml = proposal.content
-    ? generateHTML(proposal.content as JSONContent, [StarterKit, Image])
-    : "<p></p>";
+  const contentHtml = renderProposalContentHtml(proposal.content) || "<p></p>";
 
   const signedDate = signature
     ? new Date(signature.signed_at).toLocaleDateString("en-US", {

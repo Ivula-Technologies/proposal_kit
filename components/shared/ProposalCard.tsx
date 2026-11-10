@@ -8,7 +8,7 @@ import type { Proposal } from "@/types";
 export function ProposalCard({ proposal }: { proposal: Proposal }) {
   return (
     <Link href={`/editor/${proposal.id}`}>
-      <Card className="transition-shadow hover:shadow-md">
+      <Card className="transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-cyan/50 hover:shadow-md">
         <CardContent className="flex items-center justify-between gap-4 p-4">
           <div className="min-w-0 flex-1">
             <p className="truncate font-semibold text-brand-navy">

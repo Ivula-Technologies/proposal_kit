@@ -40,8 +40,15 @@
   * {
     @apply border-border;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
+  }
+  ::selection {
+    background-color: #00c2ff33;
+    color: #0f1a3e;
   }
 }
 

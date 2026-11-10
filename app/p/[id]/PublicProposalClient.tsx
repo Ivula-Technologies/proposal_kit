@@ -1,17 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { CheckCircle2, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
-import type { JSONContent } from "@tiptap/react";
 
-import { Editor } from "@/components/shared/Editor";
-import { SignaturePad } from "@/components/shared/SignaturePad";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Proposal } from "@/types";
+
+// The signature pad (canvas library + tabs) is only needed if the client
+// scrolls down to sign — load it as its own chunk instead of blocking
+// first paint of the proposal itself.
+const SignaturePad = dynamic(
+  () =>
+    import("@/components/shared/SignaturePad").then((m) => ({
+      default: m.SignaturePad,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[120px] items-center justify-center rounded-md border border-neutral-border bg-white">
+        <Loader2 className="h-4 w-4 animate-spin text-neutral-muted" />
+      </div>
+    ),
+  }
+);
 
 function formatUsd(cents: number) {
   return (cents / 100).toLocaleString("en-US", {
@@ -22,9 +38,11 @@ function formatUsd(cents: number) {
 
 export function PublicProposalClient({
   proposal,
+  contentHtml,
   depositJustPaid = false,
 }: {
   proposal: Proposal;
+  contentHtml: string;
   depositJustPaid?: boolean;
 }) {
   const [signed, setSigned] = useState(proposal.status === "signed");
@@ -102,30 +120,35 @@ export function PublicProposalClient({
   }
 
   return (
-    <div className="min-h-screen bg-neutral-bg px-4 py-8 sm:py-12">
-      <div className="mx-auto max-w-[720px]">
-        <div className="mb-6 text-center text-sm font-semibold text-brand-navy">
-          Proposal<span className="text-brand-cyan">Kit</span>
-        </div>
-
-        <div className="rounded-lg border border-neutral-border bg-white shadow-sm">
-          <div className="border-b border-neutral-border px-4 py-6 sm:px-8">
-            <h1 className="text-2xl font-bold text-brand-navy">
-              {proposal.title}
-            </h1>
-            {proposal.client_name && (
-              <p className="mt-1 text-sm text-neutral-muted">
-                Prepared for {proposal.client_name}
-              </p>
-            )}
+    <div className="min-h-screen bg-neutral-bg">
+      <div className="h-1.5 bg-gradient-to-r from-brand-navy via-brand-cyan to-brand-navy" />
+      <div className="px-4 py-8 sm:py-12">
+        <div className="mx-auto max-w-[720px]">
+          <div className="mb-6 text-center text-sm font-bold tracking-tight text-brand-navy">
+            Proposal<span className="text-brand-cyan">Kit</span>
           </div>
 
-          <Editor
-            content={proposal.content as JSONContent | null}
-            editable={false}
-          />
+          <div className="overflow-hidden rounded-xl border border-neutral-border bg-white shadow-sm">
+            <div className="border-b border-neutral-border bg-gradient-to-br from-white to-brand-light/40 px-4 py-8 sm:px-8">
+              <h1 className="text-2xl font-bold tracking-tight text-brand-navy sm:text-3xl">
+                {proposal.title}
+              </h1>
+              {proposal.client_name && (
+                <p className="mt-2 text-sm text-neutral-muted">
+                  Prepared for{" "}
+                  <span className="font-medium text-foreground">
+                    {proposal.client_name}
+                  </span>
+                </p>
+              )}
+            </div>
 
-          <div className="border-t border-neutral-border px-4 py-8 sm:px-8">
+            <div
+              className="prose prose-sm max-w-none px-4 py-6 prose-headings:text-brand-navy prose-a:text-brand-cyan sm:prose-base sm:px-8 sm:py-8"
+              dangerouslySetInnerHTML={{ __html: contentHtml }}
+            />
+
+            <div className="border-t border-neutral-border bg-neutral-bg/50 px-4 py-8 sm:px-8">
             {signed ? (
               <div className="flex flex-col items-center gap-2 py-8 text-center">
                 <CheckCircle2 className="h-10 w-10 text-status-signed" />
@@ -212,7 +235,14 @@ export function PublicProposalClient({
                 </CardContent>
               </Card>
             )}
+            </div>
           </div>
+
+          <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-neutral-muted">
+            <Lock className="h-3 w-3" />
+            Signed securely with ProposalKit — signature, IP, and timestamp
+            are recorded.
+          </p>
         </div>
       </div>
     </div>
