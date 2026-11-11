@@ -36,7 +36,7 @@ export function NewProposalButton({
       setCreating(null);
       setOpen(false);
       const body = await res.json().catch(() => ({}));
-      toast.error(body.error ?? "Choose a plan to keep creating proposals");
+      toast.error(body.error ?? "You can't create more proposals right now");
       router.push("/settings#billing");
       return;
     }

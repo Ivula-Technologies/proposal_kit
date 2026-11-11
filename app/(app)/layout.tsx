@@ -38,7 +38,12 @@ export default async function AppLayout({
       {banner && (
         <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-brand-navy px-4 py-2 text-center text-sm text-white">
           <span>{banner}</span>
-          <Link href="/settings#billing" className="font-semibold text-brand-cyan underline-offset-2 hover:underline">
+          {/* Plans are chosen on the website, never in the Google Play app (lib/app-platform.ts). */}
+          <Link
+            href="/settings#billing"
+            data-hide-in-app
+            className="font-semibold text-brand-cyan underline-offset-2 hover:underline"
+          >
             Choose a plan
           </Link>
         </div>

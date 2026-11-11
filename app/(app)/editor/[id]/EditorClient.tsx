@@ -498,7 +498,7 @@ export function EditorClient({
           ) : !canEdit ? (
             <>
               Your free trial has ended, so this proposal is read-only.{" "}
-              <Link href="/settings#billing" className="font-semibold underline">
+              <Link href="/settings#billing" data-hide-in-app className="font-semibold underline">
                 Choose a plan
               </Link>
             </>
