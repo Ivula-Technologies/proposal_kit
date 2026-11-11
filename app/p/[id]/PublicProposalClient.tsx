@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, CheckCircle2, Eye, Loader2, Lock, Mail, MessageSquare, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -45,6 +45,7 @@ export function PublicProposalClient({
   depositsEnabled,
   depositJustPaid = false,
   isOwnerPreview = false,
+  trackView = false,
   contactEmail = null,
   validUntil = null,
   expired = false,
@@ -57,6 +58,8 @@ export function PublicProposalClient({
   depositsEnabled: boolean;
   depositJustPaid?: boolean;
   isOwnerPreview?: boolean;
+  /** Tell the server this is the client's first open. */
+  trackView?: boolean;
   contactEmail?: string | null;
   /** "Nov 10, 2026", formatted on the server. */
   validUntil?: string | null;
@@ -64,6 +67,12 @@ export function PublicProposalClient({
   declined?: boolean;
   version?: string;
 }) {
+  useEffect(() => {
+    if (!trackView) return;
+    void fetch(`/api/proposals/${proposal.id}/view`, { method: "POST", keepalive: true }).catch(
+      () => {}
+    );
+  }, [trackView, proposal.id]);
   const [signed, setSigned] = useState(proposal.status === "signed");
   const [payingDeposit, setPayingDeposit] = useState(false);
   const [signerName, setSignerName] = useState("");

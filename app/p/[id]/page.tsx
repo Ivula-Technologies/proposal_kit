@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { appUrl, loadEntitlement } from "@/lib/billing";
+import { loadEntitlement } from "@/lib/billing";
 import { contentVersion } from "@/lib/content-version";
 import { formatDay, isExpired } from "@/lib/followups";
-import { sendOwnerNotice } from "@/lib/resend";
 import { isUuid } from "@/lib/validate";
 import { PublicProposalClient } from "./PublicProposalClient";
 
@@ -47,42 +46,12 @@ export default async function PublicProposalPage(props: {
     proposal.user_id
   );
 
-  // Track the client's first open and tell the sender. The sender
-  // previewing their own link doesn't count, and a signed proposal is never
-  // downgraded.
+  // The client's first open is recorded by the page itself once it loads
+  // (/api/proposals/[id]/view), so link scanners don't count as opens.
   const {
     data: { user },
   } = await (await createClient()).auth.getUser();
   const isOwner = user?.id === proposal.user_id;
-  if (!proposal.viewed_at && !isOwner) {
-    const nextStatus =
-      proposal.status === "signed" || proposal.status === "declined" ? proposal.status : "viewed";
-    const viewedAt = new Date().toISOString();
-    const { data: claimed } = await supabase
-      .from("proposals")
-      .update({ viewed_at: viewedAt, status: nextStatus })
-      .eq("id", proposal.id)
-      .eq("status", proposal.status)
-      .is("viewed_at", null)
-      .select("id");
-    proposal.viewed_at = viewedAt;
-    proposal.status = nextStatus;
-
-    if (claimed?.length && profile?.email && nextStatus === "viewed") {
-      const who = proposal.client_name || "Your client";
-      void sendOwnerNotice({
-        to: profile.email,
-        subject: `${who} opened "${proposal.title}"`,
-        title: "Your proposal was just opened",
-        lines: [
-          `${who} opened "${proposal.title}". This is a good moment to follow up while it's fresh.`,
-          "You'll get another email as soon as they sign.",
-        ],
-        linkUrl: `${appUrl()}/editor/${proposal.id}`,
-        linkLabel: "Open the proposal",
-      }).catch((err) => console.error("Failed to send viewed notice", err));
-    }
-  }
 
   return (
     <PublicProposalClient
@@ -103,6 +72,7 @@ export default async function PublicProposalPage(props: {
       depositsEnabled={!!profile?.charges_enabled}
       depositJustPaid={searchParams.deposit === "success"}
       isOwnerPreview={isOwner}
+      trackView={!isOwner && !proposal.viewed_at}
       contactEmail={profile?.email ?? null}
       validUntil={proposal.expires_on ? formatDay(proposal.expires_on) : null}
       expired={isExpired(proposal.expires_on)}

@@ -62,31 +62,40 @@ export async function POST(request: Request) {
   const base = appUrl(request);
   const fee = platformFeeFor(proposal.deposit_amount);
 
-  const session = await getStripe().checkout.sessions.create({
-    mode: "payment",
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency: "usd",
-          unit_amount: proposal.deposit_amount,
-          product_data: {
-            name: `Deposit — ${proposal.title}`.slice(0, 250),
+  let session;
+  try {
+    session = await getStripe().checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: "usd",
+            unit_amount: proposal.deposit_amount,
+            product_data: {
+              name: `Deposit — ${proposal.title}`.slice(0, 250),
+            },
           },
         },
-      },
-    ],
-    customer_email: proposal.client_email ?? undefined,
-    metadata: { proposal_id: proposal.id, kind: "deposit" },
-    payment_intent_data: {
-      on_behalf_of: owner.stripe_account_id,
-      transfer_data: { destination: owner.stripe_account_id },
-      ...(fee > 0 ? { application_fee_amount: fee } : {}),
+      ],
+      customer_email: proposal.client_email ?? undefined,
       metadata: { proposal_id: proposal.id, kind: "deposit" },
-    },
-    success_url: `${base}/p/${proposal.id}?deposit=success`,
-    cancel_url: `${base}/p/${proposal.id}?deposit=cancelled`,
-  });
+      payment_intent_data: {
+        on_behalf_of: owner.stripe_account_id,
+        transfer_data: { destination: owner.stripe_account_id },
+        ...(fee > 0 ? { application_fee_amount: fee } : {}),
+        metadata: { proposal_id: proposal.id, kind: "deposit" },
+      },
+      success_url: `${base}/p/${proposal.id}?deposit=success`,
+      cancel_url: `${base}/p/${proposal.id}?deposit=cancelled`,
+    });
+  } catch (err) {
+    console.error("Deposit checkout failed", err);
+    return NextResponse.json(
+      { error: "Card payment isn't available right now. Please try again in a few minutes." },
+      { status: 502 }
+    );
+  }
 
   return NextResponse.json({ url: session.url });
 }
