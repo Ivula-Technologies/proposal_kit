@@ -101,8 +101,17 @@ export function EditorClient({
   const [title, setTitle] = useState(proposal.title);
   const [clientName, setClientName] = useState(proposal.client_name ?? "");
   const [clientEmail, setClientEmail] = useState(proposal.client_email ?? "");
+  // A deposit is either a fixed dollar amount or a percent of the pricing
+  // table total, which then follows the add-ons the client picks.
+  const [depositMode, setDepositMode] = useState<"amount" | "percent">(
+    proposal.deposit_percent ? "percent" : "amount"
+  );
   const [depositDollars, setDepositDollars] = useState(
-    proposal.deposit_amount ? String(proposal.deposit_amount / 100) : ""
+    proposal.deposit_percent
+      ? String(proposal.deposit_percent)
+      : proposal.deposit_amount
+        ? String(proposal.deposit_amount / 100)
+        : ""
   );
   const [status, setStatus] = useState(proposal.status);
   const [expiresOn, setExpiresOn] = useState(proposal.expires_on ?? "");
@@ -138,6 +147,17 @@ export function EditorClient({
       Number.isFinite(parsedDeposit) && parsedDeposit > 0
         ? parsedDeposit
         : null;
+    const parsedPercent = Math.round(parseFloat(depositDollars));
+    const depositFields =
+      depositMode === "percent"
+        ? {
+            deposit_percent:
+              Number.isFinite(parsedPercent) && parsedPercent > 0
+                ? Math.min(parsedPercent, 100)
+                : null,
+            ...(Number.isFinite(parsedPercent) && parsedPercent > 0 ? {} : { deposit_amount: null }),
+          }
+        : { deposit_percent: null, deposit_amount: depositAmount };
 
     const { ok, error } = await patchProposal(proposal.id, {
       title,
@@ -146,7 +166,7 @@ export function EditorClient({
       ...(clientEmail === "" || isEmail(clientEmail.trim())
         ? { client_email: clientEmail.trim() || null }
         : {}),
-      ...(payoutsReady ? { deposit_amount: depositAmount } : {}),
+      ...(payoutsReady ? depositFields : {}),
       expires_on: expiresOn || null,
       content: contentRef.current,
     });
@@ -158,15 +178,20 @@ export function EditorClient({
     }
     setSaveState("saved");
     return true;
-  }, [title, clientName, clientEmail, depositDollars, expiresOn, payoutsReady, proposal.id]);
+  }, [title, clientName, clientEmail, depositDollars, depositMode, expiresOn, payoutsReady, proposal.id]);
+
+  // Always the latest save, so a timer set before a re-render still saves the
+  // newest field values rather than the ones from when it was scheduled.
+  const saveRef = useRef(save);
+  saveRef.current = save;
 
   const scheduleSave = useCallback(() => {
     if (locked) return;
     dirtyRef.current = true;
     setSaveState("idle");
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(save, AUTOSAVE_DELAY_MS);
-  }, [save, locked]);
+    timeoutRef.current = setTimeout(() => void saveRef.current(), AUTOSAVE_DELAY_MS);
+  }, [locked]);
 
   async function flushSave() {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -174,8 +199,6 @@ export function EditorClient({
   }
 
   // Save on the way out so a quick edit isn't lost.
-  const saveRef = useRef(save);
-  saveRef.current = save;
   useEffect(() => {
     const flush = () => {
       if (dirtyRef.current) void saveRef.current();
@@ -355,25 +378,46 @@ export function EditorClient({
             <div
               className="relative col-span-2 sm:col-span-1"
               title={
-                payoutsReady
-                  ? "Deposit your client pays after signing"
-                  : "Set up payouts in Settings to ask for a deposit"
+                !payoutsReady
+                  ? "Set up payouts in Settings to ask for a deposit"
+                  : depositMode === "percent"
+                    ? "Percent of the pricing table total, worked out from the add-ons your client picks"
+                    : "Deposit your client pays after signing"
               }
             >
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-muted">
-                $
-              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setDepositMode((mode) => (mode === "amount" ? "percent" : "amount"));
+                  setDepositDollars("");
+                  scheduleSave();
+                }}
+                disabled={locked || !payoutsReady}
+                aria-label={
+                  depositMode === "percent"
+                    ? "Deposit is a percent of the total. Switch to a dollar amount"
+                    : "Deposit is a dollar amount. Switch to a percent of the total"
+                }
+                className="absolute left-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-sm font-semibold text-brand-navy hover:bg-brand-light disabled:text-neutral-muted disabled:hover:bg-transparent"
+              >
+                {depositMode === "percent" ? "%" : "$"}
+              </button>
               <Input
                 value={depositDollars}
                 onChange={handleFieldChange(setDepositDollars)}
                 disabled={locked || !payoutsReady}
-                placeholder="Deposit (optional)"
-                aria-label="Deposit amount in US dollars"
+                placeholder={depositMode === "percent" ? "Deposit % of total" : "Deposit (optional)"}
+                aria-label={
+                  depositMode === "percent"
+                    ? "Deposit as a percent of the pricing table total"
+                    : "Deposit amount in US dollars"
+                }
                 type="number"
-                inputMode="decimal"
-                min="0"
-                step="0.01"
-                className="h-9 pl-7 sm:w-40"
+                inputMode={depositMode === "percent" ? "numeric" : "decimal"}
+                min={depositMode === "percent" ? "1" : "0"}
+                max={depositMode === "percent" ? "100" : undefined}
+                step={depositMode === "percent" ? "1" : "0.01"}
+                className="h-9 pl-9 sm:w-44"
               />
             </div>
             <label className="col-span-2 flex h-9 items-center gap-2 rounded-md border border-input bg-white px-3 text-sm text-neutral-muted sm:col-span-1 sm:w-56" title="Last day your client can sign. Leave empty for no end date.">

@@ -38,7 +38,12 @@ export async function updateSession(request: NextRequest) {
   );
 
   if (!user && isProtected) {
-    const redirectUrl = new URL("/login", request.url);
+    // Behind cPanel's Passenger, request.url says localhost:3000; send people
+    // to the public address instead.
+    const redirectUrl = new URL(
+      "/login",
+      process.env.NEXT_PUBLIC_APP_URL || request.url
+    );
     redirectUrl.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
   }

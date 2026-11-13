@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { appUrl } from "@/lib/billing";
 import { safeNextPath } from "@/lib/validate";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  // Behind cPanel's Passenger, request.url says localhost:3000, so redirects
+  // use the public address from NEXT_PUBLIC_APP_URL.
+  const origin = appUrl(request);
   const code = searchParams.get("code");
   const next = safeNextPath(searchParams.get("next"));
 

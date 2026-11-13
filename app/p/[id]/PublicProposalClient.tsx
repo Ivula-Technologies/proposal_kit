@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, CheckCircle2, Eye, Loader2, Lock, Mail, MessageSquare, XCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +8,7 @@ import type { JSONContent } from "@tiptap/react";
 
 import { Editor } from "@/components/shared/Editor";
 import { PricingSelectionContext } from "@/components/shared/PricingTableView";
-import { defaultSelection } from "@/lib/pricing";
+import { defaultSelection, depositFromPercent, documentTotal, money } from "@/lib/pricing";
 import { SignaturePad } from "@/components/shared/SignaturePad";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,7 @@ export type PublicProposal = Pick<
   | "content"
   | "status"
   | "deposit_amount"
+  | "deposit_percent"
   | "deposit_paid"
 >;
 
@@ -44,6 +45,7 @@ export function PublicProposalClient({
   depositsEnabled,
   depositJustPaid = false,
   isOwnerPreview = false,
+  trackView = false,
   contactEmail = null,
   validUntil = null,
   expired = false,
@@ -56,6 +58,8 @@ export function PublicProposalClient({
   depositsEnabled: boolean;
   depositJustPaid?: boolean;
   isOwnerPreview?: boolean;
+  /** Tell the server this is the client's first open. */
+  trackView?: boolean;
   contactEmail?: string | null;
   /** "Nov 10, 2026", formatted on the server. */
   validUntil?: string | null;
@@ -63,14 +67,14 @@ export function PublicProposalClient({
   declined?: boolean;
   version?: string;
 }) {
+  useEffect(() => {
+    if (!trackView) return;
+    void fetch(`/api/proposals/${proposal.id}/view`, { method: "POST", keepalive: true }).catch(
+      () => {}
+    );
+  }, [trackView, proposal.id]);
   const [signed, setSigned] = useState(proposal.status === "signed");
   const [payingDeposit, setPayingDeposit] = useState(false);
-  const depositDue =
-    depositsEnabled &&
-    !!proposal.deposit_amount &&
-    proposal.deposit_amount > 0 &&
-    !proposal.deposit_paid &&
-    !depositJustPaid;
   const [signerName, setSignerName] = useState("");
   const [signerEmail, setSignerEmail] = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(
@@ -87,8 +91,18 @@ export function PublicProposalClient({
     defaultSelection(proposal.content as JSONContent | null)
   );
 
-  const depositOnSign =
-    depositsEnabled && !!proposal.deposit_amount && proposal.deposit_amount > 0;
+  // A percentage deposit follows the add-ons ticked above, worked out the
+  // same way the signing route fixes it. Before signing that's the live
+  // choice; after, it's the choice baked into the signed document.
+  const agreedTotal = useMemo(
+    () => documentTotal(proposal.content as JSONContent | null, selectedItems),
+    [proposal.content, selectedItems]
+  );
+  const depositAmount = proposal.deposit_percent
+    ? depositFromPercent(agreedTotal, proposal.deposit_percent)
+    : proposal.deposit_amount;
+  const depositOnSign = depositsEnabled && !!depositAmount && depositAmount > 0;
+  const depositDue = depositOnSign && !proposal.deposit_paid && !depositJustPaid;
 
   const choicesLocked = signed || declined || expired;
   const pricingSelection = useMemo(
@@ -279,7 +293,7 @@ export function PublicProposalClient({
                     <p className="text-sm text-neutral-muted">
                       A deposit of{" "}
                       <strong className="text-brand-navy">
-                        {formatUsd(proposal.deposit_amount!)}
+                        {formatUsd(depositAmount!)}
                       </strong>{" "}
                       is due to kick off this project.
                     </p>
@@ -291,7 +305,7 @@ export function PublicProposalClient({
                       {payingDeposit && (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       )}
-                      Pay {formatUsd(proposal.deposit_amount!)} deposit
+                      Pay {formatUsd(depositAmount!)} deposit
                     </Button>
                     <p className="text-center text-xs text-neutral-muted">
                       Secure payment via Stripe
@@ -368,9 +382,13 @@ export function PublicProposalClient({
                       <p className="rounded-md bg-neutral-bg px-3 py-2 text-sm text-neutral-muted">
                         After signing, you&apos;ll be asked to pay a{" "}
                         <strong className="text-brand-navy">
-                          {formatUsd(proposal.deposit_amount!)}
+                          {formatUsd(depositAmount!)}
                         </strong>{" "}
-                        deposit by card to book the project.
+                        deposit by card to book the project
+                        {proposal.deposit_percent && agreedTotal !== null
+                          ? ` (${proposal.deposit_percent}% of ${money(agreedTotal)})`
+                          : ""}
+                        .
                       </p>
                     )}
 

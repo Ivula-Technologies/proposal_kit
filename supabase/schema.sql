@@ -97,6 +97,9 @@ alter table proposals add column if not exists declined_at      timestamptz;
 alter table proposals add column if not exists decline_reason   text;
 -- Grand total of the pricing tables as signed (optional add-ons the client chose included)
 alter table proposals add column if not exists accepted_total   integer;   -- cents
+-- Deposit as a share of the agreed total (pricing tables). deposit_amount is
+-- then worked out from it, and fixed at signing from the client's choices.
+alter table proposals add column if not exists deposit_percent  smallint;  -- 1-100
 
 do $$
 begin
@@ -107,6 +110,10 @@ begin
   if not exists (select 1 from pg_constraint where conname = 'proposals_deposit_check') then
     alter table proposals add constraint proposals_deposit_check
       check (deposit_amount is null or deposit_amount between 50 and 10000000);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'proposals_deposit_percent_check') then
+    alter table proposals add constraint proposals_deposit_percent_check
+      check (deposit_percent is null or deposit_percent between 1 and 100);
   end if;
 end $$;
 

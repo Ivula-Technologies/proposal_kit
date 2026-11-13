@@ -7,7 +7,7 @@ import { sendSignedProposalEmail } from "@/lib/resend";
 import { appUrl, loadEntitlement } from "@/lib/billing";
 import { contentVersion } from "@/lib/content-version";
 import { isExpired } from "@/lib/followups";
-import { applySelection } from "@/lib/pricing";
+import { applySelection, depositFromPercent } from "@/lib/pricing";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { isEmail, isUuid } from "@/lib/validate";
 
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 
   const { data: current } = await supabase
     .from("proposals")
-    .select("expires_on, status, content")
+    .select("expires_on, status, content, deposit_percent, deposit_amount")
     .eq("id", proposalId)
     .maybeSingle();
   if (current?.status === "declined") {
@@ -102,8 +102,17 @@ export async function POST(request: Request) {
   const priced = current?.content
     ? applySelection(current.content, selectedItems)
     : { content: null, total: null };
+  // A percentage deposit is fixed now, from the total the client agreed to.
   const pricingUpdate =
-    priced.total !== null ? { content: priced.content, accepted_total: priced.total } : {};
+    priced.total !== null
+      ? {
+          content: priced.content,
+          accepted_total: priced.total,
+          ...(current?.deposit_percent
+            ? { deposit_amount: depositFromPercent(priced.total, current.deposit_percent) }
+            : {}),
+        }
+      : {};
 
   // Claim the proposal atomically so it can only be signed once, even if
   // the client double-clicks or two people open the link.
@@ -157,7 +166,13 @@ export async function POST(request: Request) {
       .update({
         status: proposal.viewed_at ? "viewed" : "sent",
         signed_at: null,
-        ...(priced.total !== null ? { content: current!.content, accepted_total: null } : {}),
+        ...(priced.total !== null
+          ? {
+              content: current!.content,
+              accepted_total: null,
+              deposit_amount: current!.deposit_amount,
+            }
+          : {}),
       })
       .eq("id", proposalId);
     if (!uploadError) {

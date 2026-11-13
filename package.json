@@ -19,17 +19,18 @@
     "@sparticuz/chromium": "^149.0.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.110.0",
-    "@tiptap/core": "^3.31.4",
-    "@tiptap/extension-image": "^3.31.4",
-    "@tiptap/html": "^3.31.4",
-    "@tiptap/pm": "^3.31.4",
-    "@tiptap/react": "^3.31.4",
-    "@tiptap/starter-kit": "^3.31.4",
+    "@tiptap/core": "^3.33.1",
+    "@tiptap/extension-image": "^3.33.1",
+    "@tiptap/html": "^3.33.1",
+    "@tiptap/pm": "^3.33.1",
+    "@tiptap/react": "^3.33.1",
+    "@tiptap/starter-kit": "^3.33.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
+    "happy-dom": "^21.0.4",
     "lucide-react": "^1.23.0",
-    "next": "^15.5.27",
+    "next": "^15.5.29",
     "puppeteer-core": "^25.3.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -55,5 +56,10 @@
   },
   "engines": {
     "node": ">=22.17"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.32"
+    }
   }
 }

@@ -62,6 +62,7 @@ export async function POST(request: Request) {
   let content =
     body.content && typeof body.content === "object" ? body.content : null;
   let depositAmount: number | null = null;
+  let depositPercent: number | null = null;
 
   const template = builtInTemplate(body.template);
   if (template) {
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
     // Start a new proposal from one of your own, for the next client.
     const { data: source } = await service
       .from("proposals")
-      .select("title, content, deposit_amount")
+      .select("title, content, deposit_amount, deposit_percent")
       .eq("id", body.duplicateOf)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -83,11 +84,18 @@ export async function POST(request: Request) {
     title = `${source.title} (copy)`.slice(0, 200);
     content = source.content;
     depositAmount = source.deposit_amount;
+    depositPercent = source.deposit_percent;
   }
 
   const { data, error } = await service
     .from("proposals")
-    .insert({ user_id: user.id, title, content, deposit_amount: depositAmount })
+    .insert({
+      user_id: user.id,
+      title,
+      content,
+      deposit_amount: depositAmount,
+      deposit_percent: depositPercent,
+    })
     .select("*")
     .single();
 
