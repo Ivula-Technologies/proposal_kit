@@ -65,7 +65,8 @@ export async function POST(request: Request) {
   if (proposal.deposit_checkout_session) {
     try {
       const existing = await getStripe().checkout.sessions.retrieve(
-        proposal.deposit_checkout_session
+        proposal.deposit_checkout_session,
+        { expand: ["payment_intent"] }
       );
       if (
         existing.status === "open" &&
@@ -74,11 +75,31 @@ export async function POST(request: Request) {
       ) {
         return NextResponse.json({ url: existing.url });
       }
+      if (existing.status === "open") {
+        // The deposit changed since this checkout started: close the old one.
+        await getStripe().checkout.sessions.expire(existing.id).catch(() => {});
+      }
       if (existing.status === "complete") {
-        return NextResponse.json(
-          { error: "This deposit has been paid. It can take a minute to show here." },
-          { status: 409 }
-        );
+        // A bank payment can finish checkout as "unpaid" and settle days later,
+        // so only a payment that failed lets the client start a new one.
+        const intent =
+          typeof existing.payment_intent === "object" ? existing.payment_intent : null;
+        const paid =
+          existing.payment_status === "paid" ||
+          existing.payment_status === "no_payment_required";
+        const failed =
+          !paid &&
+          (intent?.status === "requires_payment_method" || intent?.status === "canceled");
+        if (!failed) {
+          return NextResponse.json(
+            {
+              error: paid
+                ? "This deposit has been paid. It can take a minute to show here."
+                : "A payment for this deposit is already processing. It will show here once the bank confirms it.",
+            },
+            { status: 409 }
+          );
+        }
       }
     } catch (err) {
       // Expired or unknown: start a fresh one below.
@@ -91,6 +112,14 @@ export async function POST(request: Request) {
 
   let session;
   try {
+    // Two clicks at the same moment both see no stored session; the same
+    // idempotency key makes Stripe hand both of them the same checkout.
+    const idempotencyKey = [
+      "deposit",
+      proposal.id,
+      proposal.deposit_amount,
+      proposal.deposit_checkout_session ?? "first",
+    ].join(":");
     session = await getStripe().checkout.sessions.create({
       mode: "payment",
       line_items: [
@@ -115,7 +144,7 @@ export async function POST(request: Request) {
       },
       success_url: `${base}/p/${proposal.id}?deposit=success`,
       cancel_url: `${base}/p/${proposal.id}?deposit=cancelled`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
     await reportError("checkout", err, `proposal ${proposal.id}`);
     return NextResponse.json(

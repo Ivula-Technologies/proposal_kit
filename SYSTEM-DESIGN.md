@@ -22,7 +22,7 @@ GitHub Actions: build package on every push, weekly encrypted DB backup
 | Sender edits after the client opened the page | Signing checks a content fingerprint and asks the client to reload. |
 | Spam or abuse on public pages | Per-IP limits on signing, responding, checkout and view tracking (`lib/rate-limit.ts`). Proposal ids are unguessable UUIDs. |
 | A user reading someone else's data | Row Level Security on every table. Writes go through API routes that check ownership and plan limits. |
-| Something breaks and nobody notices | Errors are stored in `app_events`. The daily cron emails `ADMIN_EMAIL` a digest on days with errors. `/api/health` returns 503 when settings are missing, the database is down, or the daily cron has not run for 26 hours. UptimeRobot watches it. |
+| Something breaks and nobody notices | Errors are stored in `app_events`. The daily cron emails `ADMIN_EMAIL` a digest on days with errors. `/api/health` returns 503 when settings are missing, the database is down, or the daily cron has not run in the last 26 hours (including never: run the cron command once right after the first deploy so health turns green). UptimeRobot watches it. |
 | Losing the database | A weekly encrypted backup runs in GitHub Actions and is kept 90 days. Supabase also keeps its own daily backups on paid plans. |
 | A bad deploy | Uploads are manual zips. Keep the previous zip, and re-upload it to roll back. `schema.sql` only adds things, so it is safe to re-run. |
 

@@ -42,7 +42,7 @@ export async function GET() {
     }
   }
 
-  const ok = missing.length === 0 && database === "ok" && dailyCron !== "stale";
+  const ok = missing.length === 0 && database === "ok" && dailyCron === "ok";
   return Response.json(
     { ok, database, dailyCron, missing, time: new Date().toISOString() },
     { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } }
