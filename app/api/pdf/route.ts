@@ -5,6 +5,7 @@ import { renderProposalToPdf } from "@/lib/pdf";
 import { loadEntitlement } from "@/lib/billing";
 import { rateLimit } from "@/lib/rate-limit";
 import { isUuid } from "@/lib/validate";
+import { reportError } from "@/lib/ops";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -81,7 +82,7 @@ export async function GET(request: Request) {
       },
     });
   } catch (err) {
-    console.error("PDF render failed", err);
+    await reportError("pdf", err, "PDF render failed");
     return NextResponse.json(
       { error: "PDF generation isn't available on this server yet" },
       { status: 503 }

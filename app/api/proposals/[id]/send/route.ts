@@ -7,6 +7,7 @@ import { formatUsd } from "@/lib/format";
 import { rateLimit } from "@/lib/rate-limit";
 import { emailConfigured, sendProposalToClient } from "@/lib/resend";
 import { isEmail, isUuid } from "@/lib/validate";
+import { reportError } from "@/lib/ops";
 
 export const runtime = "nodejs";
 
@@ -105,7 +106,7 @@ export async function POST(
       replyTo: profile?.email ?? user.email ?? null,
     });
   } catch (err) {
-    console.error("Failed to email proposal", err);
+    await reportError("send", err, "Failed to email proposal");
     return NextResponse.json(
       { error: "Couldn't send the email. Check the address, or copy the link instead." },
       { status: 502 }

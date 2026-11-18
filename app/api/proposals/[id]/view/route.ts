@@ -5,6 +5,7 @@ import { appUrl } from "@/lib/billing";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { sendOwnerNotice } from "@/lib/resend";
 import { isUuid } from "@/lib/validate";
+import { reportError } from "@/lib/ops";
 
 export const runtime = "nodejs";
 
@@ -71,7 +72,7 @@ export async function POST(
           linkLabel: "Open the proposal",
         });
       } catch (err) {
-        console.error("Failed to send viewed notice", err);
+        await reportError("view", err, "Failed to send viewed notice");
       }
     }
   }

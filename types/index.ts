@@ -31,6 +31,7 @@ export interface Proposal {
   signed_at: string | null;
   deposit_amount: number | null; // cents
   deposit_percent: number | null; // 1-100; deposit_amount follows the agreed total
+  deposit_checkout_session: string | null;
   deposit_paid: boolean;
   deposit_paid_at: string | null;
   deposit_payment_intent: string | null;

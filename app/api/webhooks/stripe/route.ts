@@ -7,6 +7,7 @@ import { appUrl, planFromPriceId } from "@/lib/billing";
 import { sendOwnerNotice } from "@/lib/resend";
 import { formatUsd } from "@/lib/format";
 import { syncConnectedAccount } from "@/lib/connect";
+import { reportError } from "@/lib/ops";
 
 export const runtime = "nodejs";
 
@@ -94,7 +95,7 @@ async function notifyDepositPaid(proposal: {
     });
   } catch (err) {
     // The deposit is already recorded; a missed email isn't worth a retry.
-    console.error("Failed to send deposit notice", err);
+    await reportError("stripe-webhook", err, "Failed to send deposit notice");
   }
 }
 
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
   } catch (err) {
     // A 500 makes Stripe retry the event (with backoff, for up to 3 days),
     // so a temporary database problem can't lose a paid deposit or plan.
-    console.error(`Stripe webhook ${event.type} ${event.id} failed`, err);
+    await reportError("stripe-webhook", err, `Stripe webhook ${event.type} ${event.id} failed`);
     return NextResponse.json({ error: "Webhook handling failed" }, { status: 500 });
   }
 

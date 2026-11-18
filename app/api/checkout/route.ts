@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getStripe, platformFeeFor } from "@/lib/stripe";
 import { appUrl } from "@/lib/billing";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { reportError } from "@/lib/ops";
 import { isUuid } from "@/lib/validate";
 
 export const runtime = "nodejs";
@@ -59,6 +60,32 @@ export async function POST(request: Request) {
     );
   }
 
+  // Reuse the checkout already started for this deposit, so a double click,
+  // a second tab or a retry can't open two payments for the same deposit.
+  if (proposal.deposit_checkout_session) {
+    try {
+      const existing = await getStripe().checkout.sessions.retrieve(
+        proposal.deposit_checkout_session
+      );
+      if (
+        existing.status === "open" &&
+        existing.amount_total === proposal.deposit_amount &&
+        existing.url
+      ) {
+        return NextResponse.json({ url: existing.url });
+      }
+      if (existing.status === "complete") {
+        return NextResponse.json(
+          { error: "This deposit has been paid. It can take a minute to show here." },
+          { status: 409 }
+        );
+      }
+    } catch (err) {
+      // Expired or unknown: start a fresh one below.
+      console.warn("Couldn't reuse deposit checkout", err);
+    }
+  }
+
   const base = appUrl(request);
   const fee = platformFeeFor(proposal.deposit_amount);
 
@@ -90,12 +117,17 @@ export async function POST(request: Request) {
       cancel_url: `${base}/p/${proposal.id}?deposit=cancelled`,
     });
   } catch (err) {
-    console.error("Deposit checkout failed", err);
+    await reportError("checkout", err, `proposal ${proposal.id}`);
     return NextResponse.json(
       { error: "Card payment isn't available right now. Please try again in a few minutes." },
       { status: 502 }
     );
   }
+
+  await supabase
+    .from("proposals")
+    .update({ deposit_checkout_session: session.id })
+    .eq("id", proposal.id);
 
   return NextResponse.json({ url: session.url });
 }
