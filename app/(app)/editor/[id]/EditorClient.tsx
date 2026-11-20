@@ -40,7 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatDay, isExpired, nextReminderAt } from "@/lib/followups";
-import { pricingTablesIn } from "@/lib/pricing";
+import { money, pricingTablesIn } from "@/lib/pricing";
 import { isEmail } from "@/lib/validate";
 import type { Proposal } from "@/types";
 
@@ -91,11 +91,15 @@ export function EditorClient({
   canEdit,
   payoutsReady,
   emailReady,
+  backHref = "/dashboard",
+  signerName = null,
 }: {
   proposal: Proposal;
   canEdit: boolean;
   payoutsReady: boolean;
   emailReady: boolean;
+  backHref?: string;
+  signerName?: string | null;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(proposal.title);
@@ -337,7 +341,7 @@ export function EditorClient({
       <div className="space-y-3 border-b border-neutral-border bg-white px-4 py-3 md:px-6">
         <div className="flex items-center gap-3">
           <Link
-            href="/dashboard"
+            href={backHref}
             aria-label="Back to proposals"
             className="shrink-0 text-neutral-muted hover:text-brand-navy"
           >
@@ -494,7 +498,11 @@ export function EditorClient({
       {(status === "signed" || !canEdit || !payoutsReady) && (
         <div className="border-b border-neutral-border bg-brand-light px-4 py-2 text-center text-xs text-brand-navy md:px-6">
           {status === "signed" ? (
-            "This proposal is signed, so it can't be edited. Duplicate it to reuse it for another client."
+            <SignedSummary
+              proposal={proposal}
+              signerName={signerName}
+              mounted={mounted}
+            />
           ) : !canEdit ? (
             <>
               Your free trial has ended, so this proposal is read-only.{" "}
@@ -593,6 +601,49 @@ function SaveIndicator({ state }: { state: SaveState }) {
     return <span className="shrink-0 text-xs text-red-600">Not saved</span>;
   }
   return null;
+}
+
+// Everything about a signed proposal in one line, each part leading to its
+// detail: the signed PDF, and the deposit in the freelancer's Stripe account.
+function SignedSummary({
+  proposal,
+  signerName,
+  mounted,
+}: {
+  proposal: Proposal;
+  signerName: string | null;
+  mounted: boolean;
+}) {
+  const day = (iso: string | null) =>
+    iso && mounted
+      ? ` on ${new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+      : "";
+  const link = "font-semibold underline underline-offset-2";
+  return (
+    <span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+      <span>
+        Signed{signerName ? ` by ${signerName}` : ""}
+        {day(proposal.signed_at)}
+        {typeof proposal.accepted_total === "number" ? ` · ${money(proposal.accepted_total)}` : ""}
+      </span>
+      <a href={`/api/pdf?proposalId=${proposal.id}`} target="_blank" rel="noreferrer" className={link}>
+        Signed PDF
+      </a>
+      {proposal.deposit_amount ? (
+        proposal.deposit_paid ? (
+          <>
+            <span>· Deposit {money(proposal.deposit_amount)} paid{day(proposal.deposit_paid_at)}</span>
+            <a href="/api/connect/dashboard" className={link}>
+              See it in Stripe
+            </a>
+          </>
+        ) : (
+          <span>· Deposit {money(proposal.deposit_amount)} not paid yet</span>
+        )
+      ) : null}
+      <span>· Signed proposals can&apos;t be edited; duplicate it to reuse it.</span>
+    </span>
+  );
 }
 
 function FollowupBar({

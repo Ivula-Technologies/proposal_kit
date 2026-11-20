@@ -230,7 +230,8 @@ export async function POST(request: Request) {
           proposalTitle: proposal.title,
           recipientLabel: "consultant",
           pdfBuffer,
-          proposalUrl,
+          // The freelancer's copy opens their own view of it, with the PDF and deposit.
+          proposalUrl: `${appUrl(request)}/editor/${proposal.id}`,
           businessName: branding.businessName,
           replyTo: signerEmail,
           acceptedTotal: proposal.accepted_total,
