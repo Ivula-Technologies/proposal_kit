@@ -4,6 +4,7 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { loadEntitlement, UPGRADE_REQUIRED } from "@/lib/billing";
 import { builtInTemplate } from "@/lib/templates";
 import { isUuid } from "@/lib/validate";
+import { reportError } from "@/lib/ops";
 
 export async function GET() {
   const supabase = await createClient();
@@ -22,7 +23,7 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Proposal query failed", error);
+    await reportError("proposals", error, "Proposal query failed");
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    console.error("Proposal query failed", error);
+    await reportError("proposals", error, "Proposal query failed");
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 

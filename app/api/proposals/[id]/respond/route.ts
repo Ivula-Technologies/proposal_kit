@@ -6,6 +6,7 @@ import { isExpired } from "@/lib/followups";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { sendClientResponseToOwner } from "@/lib/resend";
 import { isEmail, isUuid } from "@/lib/validate";
+import { reportError } from "@/lib/ops";
 
 export const runtime = "nodejs";
 
@@ -88,7 +89,7 @@ export async function POST(
     .in("status", ["sent", "viewed"])
     .select("id");
   if (error) {
-    console.error("Proposal response failed", error);
+    await reportError("respond", error, "Proposal response failed");
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
   if (!updated?.length) {
@@ -113,7 +114,7 @@ export async function POST(
       });
     } catch (err) {
       // The response is recorded either way; the email is a courtesy.
-      console.error("Failed to email client response", err);
+      await reportError("respond", err, "Failed to email client response");
     }
   }
 

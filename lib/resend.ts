@@ -94,7 +94,13 @@ export async function sendSignedProposalEmail({
     to,
     replyTo: replyTo ?? undefined,
     subject: `${proposalTitle} — Signed copy`,
-    html: emailShell(brand, "Your proposal has been signed", body + totalLine),
+    html: emailShell(
+      brand,
+      "Your proposal has been signed",
+      body +
+        totalLine +
+        (recipientLabel === "client" ? "" : button(proposalUrl, "Open the proposal"))
+    ),
     attachments: pdfBuffer
       ? [
           {

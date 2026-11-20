@@ -1,7 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { parseDashboardFilter } from "@/lib/dashboard-filter";
 import { DashboardClient } from "./DashboardClient";
 
-export default async function DashboardPage() {
+export default async function DashboardPage(props: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const initialFilter = parseDashboardFilter(await props.searchParams);
   const supabase = await createClient();
   const {
     data: { user },
@@ -23,6 +27,7 @@ export default async function DashboardPage() {
   return (
     <DashboardClient
       initialProposals={proposals ?? []}
+      initialFilter={initialFilter}
       hasBusinessName={!!profile?.business_name}
       payoutsReady={!!profile?.charges_enabled}
     />

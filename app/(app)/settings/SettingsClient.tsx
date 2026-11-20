@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -120,7 +121,7 @@ export function SettingsClient({
         </div>
       )}
 
-      <Card>
+      <Card id="business">
         <CardHeader>
           <CardTitle className="text-lg">Your business</CardTitle>
         </CardHeader>
@@ -212,8 +213,10 @@ export function SettingsClient({
           {entitlement.monthlyProposals !== null &&
             entitlement.state === "active" && (
               <p className="text-sm text-neutral-muted">
-                {entitlement.proposalsThisMonth} of{" "}
-                {entitlement.monthlyProposals} proposals used this month.
+                <Link href="/dashboard" className="underline-offset-2 hover:underline">
+                  {entitlement.proposalsThisMonth} of{" "}
+                  {entitlement.monthlyProposals} proposals used this month.
+                </Link>
               </p>
             )}
 

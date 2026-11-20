@@ -10,6 +10,7 @@ import { isExpired } from "@/lib/followups";
 import { applySelection, depositFromPercent } from "@/lib/pricing";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { isEmail, isUuid } from "@/lib/validate";
+import { reportError } from "@/lib/ops";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -203,7 +204,7 @@ export async function POST(request: Request) {
         branding,
       });
     } catch (err) {
-      console.error("Failed to render signed PDF", err);
+      await reportError("sign", err, "Failed to render signed PDF");
     }
 
     const proposalUrl = `${appUrl(request)}/p/${proposal.id}`;
@@ -229,7 +230,8 @@ export async function POST(request: Request) {
           proposalTitle: proposal.title,
           recipientLabel: "consultant",
           pdfBuffer,
-          proposalUrl,
+          // The freelancer's copy opens their own view of it, with the PDF and deposit.
+          proposalUrl: `${appUrl(request)}/editor/${proposal.id}`,
           businessName: branding.businessName,
           replyTo: signerEmail,
           acceptedTotal: proposal.accepted_total,
@@ -238,7 +240,7 @@ export async function POST(request: Request) {
     }
     await Promise.all(sends);
   } catch (err) {
-    console.error("Failed to send signed-proposal emails", err);
+    await reportError("sign", err, "Failed to send signed-proposal emails");
   }
 
   return NextResponse.json({ ok: true });

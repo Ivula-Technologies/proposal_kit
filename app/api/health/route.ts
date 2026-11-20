@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { cronHealth, lastCronRun } from "@/lib/ops";
 
 export const dynamic = "force-dynamic";
 
@@ -24,21 +25,26 @@ export async function GET() {
   const missing = REQUIRED.filter((name) => !process.env[name]);
 
   let database = "skipped";
+  // "ok", "never" (no run recorded yet) or "stale" (none for over 26 hours,
+  // so reminders and the error digest have stopped).
+  let dailyCron = "unknown";
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
     try {
-      const { error } = await createServiceClient()
+      const supabase = createServiceClient();
+      const { error } = await supabase
         .from("profiles")
         .select("id", { head: true, count: "exact" })
         .limit(1);
       database = error ? "error" : "ok";
+      if (!error) dailyCron = cronHealth(await lastCronRun(supabase, "daily"));
     } catch {
       database = "error";
     }
   }
 
-  const ok = missing.length === 0 && database === "ok";
+  const ok = missing.length === 0 && database === "ok" && dailyCron === "ok";
   return Response.json(
-    { ok, database, missing, time: new Date().toISOString() },
+    { ok, database, dailyCron, missing, time: new Date().toISOString() },
     { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } }
   );
 }

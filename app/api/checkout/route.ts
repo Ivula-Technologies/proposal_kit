@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getStripe, platformFeeFor } from "@/lib/stripe";
 import { appUrl } from "@/lib/billing";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { reportError } from "@/lib/ops";
 import { isUuid } from "@/lib/validate";
 
 export const runtime = "nodejs";
@@ -59,11 +60,66 @@ export async function POST(request: Request) {
     );
   }
 
+  // Reuse the checkout already started for this deposit, so a double click,
+  // a second tab or a retry can't open two payments for the same deposit.
+  if (proposal.deposit_checkout_session) {
+    try {
+      const existing = await getStripe().checkout.sessions.retrieve(
+        proposal.deposit_checkout_session,
+        { expand: ["payment_intent"] }
+      );
+      if (
+        existing.status === "open" &&
+        existing.amount_total === proposal.deposit_amount &&
+        existing.url
+      ) {
+        return NextResponse.json({ url: existing.url });
+      }
+      if (existing.status === "open") {
+        // The deposit changed since this checkout started: close the old one.
+        await getStripe().checkout.sessions.expire(existing.id).catch(() => {});
+      }
+      if (existing.status === "complete") {
+        // A bank payment can finish checkout as "unpaid" and settle days later,
+        // so only a payment that failed lets the client start a new one.
+        const intent =
+          typeof existing.payment_intent === "object" ? existing.payment_intent : null;
+        const paid =
+          existing.payment_status === "paid" ||
+          existing.payment_status === "no_payment_required";
+        const failed =
+          !paid &&
+          (intent?.status === "requires_payment_method" || intent?.status === "canceled");
+        if (!failed) {
+          return NextResponse.json(
+            {
+              error: paid
+                ? "This deposit has been paid. It can take a minute to show here."
+                : "A payment for this deposit is already processing. It will show here once the bank confirms it.",
+            },
+            { status: 409 }
+          );
+        }
+      }
+    } catch (err) {
+      // Expired or unknown: start a fresh one below.
+      console.warn("Couldn't reuse deposit checkout", err);
+    }
+  }
+
   const base = appUrl(request);
   const fee = platformFeeFor(proposal.deposit_amount);
 
   let session;
   try {
+    // Two clicks at the same moment both see no stored session; the same
+    // idempotency key makes Stripe hand both of them the same checkout.
+    const idempotencyKey = [
+      "deposit",
+      proposal.id,
+      proposal.deposit_amount,
+      proposal.deposit_checkout_session ?? "first",
+    ].join(":");
     session = await getStripe().checkout.sessions.create({
       mode: "payment",
       line_items: [
@@ -88,14 +144,19 @@ export async function POST(request: Request) {
       },
       success_url: `${base}/p/${proposal.id}?deposit=success`,
       cancel_url: `${base}/p/${proposal.id}?deposit=cancelled`,
-    });
+    }, { idempotencyKey });
   } catch (err) {
-    console.error("Deposit checkout failed", err);
+    await reportError("checkout", err, `proposal ${proposal.id}`);
     return NextResponse.json(
       { error: "Card payment isn't available right now. Please try again in a few minutes." },
       { status: 502 }
     );
   }
+
+  await supabase
+    .from("proposals")
+    .update({ deposit_checkout_session: session.id })
+    .eq("id", proposal.id);
 
   return NextResponse.json({ url: session.url });
 }

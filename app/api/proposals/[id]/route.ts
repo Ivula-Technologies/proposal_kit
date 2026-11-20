@@ -10,6 +10,7 @@ import {
   MAX_DEPOSIT_CENTS,
   MIN_DEPOSIT_CENTS,
 } from "@/lib/validate";
+import { reportError } from "@/lib/ops";
 
 type Updates = Record<string, unknown>;
 
@@ -173,7 +174,7 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    console.error("Proposal query failed", error);
+    await reportError("proposals", error, "Proposal query failed");
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
   if (!data) {
@@ -214,7 +215,7 @@ export async function DELETE(
     .select("id");
 
   if (error) {
-    console.error("Proposal query failed", error);
+    await reportError("proposals", error, "Proposal query failed");
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
   if (!data?.length) {

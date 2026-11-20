@@ -100,6 +100,9 @@ alter table proposals add column if not exists accepted_total   integer;   -- ce
 -- Deposit as a share of the agreed total (pricing tables). deposit_amount is
 -- then worked out from it, and fixed at signing from the client's choices.
 alter table proposals add column if not exists deposit_percent  smallint;  -- 1-100
+-- The open Stripe Checkout for the deposit, reused so a double click or a
+-- second tab cannot start (and charge) two payments.
+alter table proposals add column if not exists deposit_checkout_session text;
 
 do $$
 begin
@@ -187,6 +190,31 @@ drop trigger if exists proposals_set_updated_at on proposals;
 create trigger proposals_set_updated_at
   before update on proposals
   for each row execute function set_updated_at();
+
+
+-- ── operations ──────────────────────────────────────────────────────
+-- Server errors for the daily digest email (kept 30 days), and small
+-- key/value status such as when the daily cron last ran. Only the server
+-- (service role) reads or writes these.
+create table if not exists app_events (
+  id          bigserial primary key,
+  created_at  timestamptz not null default now(),
+  level       text not null default 'error' check (level in ('error', 'info')),
+  source      text not null,
+  message     text not null,
+  detail      text
+);
+create index if not exists app_events_created_idx on app_events (created_at desc);
+alter table app_events enable row level security;
+revoke all on app_events from anon, authenticated;
+
+create table if not exists app_status (
+  key         text primary key,
+  value       text,
+  updated_at  timestamptz not null default now()
+);
+alter table app_status enable row level security;
+revoke all on app_status from anon, authenticated;
 
 
 -- ── Storage bucket ──────────────────────────────────────────────────
